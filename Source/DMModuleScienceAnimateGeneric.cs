@@ -80,9 +80,12 @@ namespace DMModuleScienceAnimateGeneric
         public string resourceExperiment = "ElectricCharge";
         [KSPField]
         public float resourceExpCost = 0;
+        [KSPField]
+        public bool asteroidReports = false;
 
         protected Animation anim;
         protected ScienceExperiment scienceExp;
+        protected AsteroidScience AstSci;
         private bool resourceOn = false;
         private int dataIndex = 0;
         
@@ -410,17 +413,25 @@ namespace DMModuleScienceAnimateGeneric
 
         //Create the science data
         public ScienceData makeScience()
-        {
+        {            
             ExperimentSituations vesselSituation = getSituation();
             string biome = getBiome(vesselSituation);
+            CelestialBody mainBody = vessel.mainBody;
+            if (asteroidReports && AstSci.asteroidGrappled() || asteroidReports && AstSci.asteroidNear())
+            {
+                AstSci.Asteroid();
+                vesselSituation = AstSci.asteroidSituation();
+                mainBody = AstSci.AsteroidBody;
+                biome = "";
+            }
             ScienceData data = null;
             ScienceExperiment exp = ResearchAndDevelopment.GetExperiment(experimentID);
-            ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, vessel.mainBody, biome);
+            ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, mainBody, biome);
             data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, experimentID, exp.experimentTitle + situationCleanup(vesselSituation, biome));
             data.subjectID = sub.id;
             return data;
         }
-
+        
         public string getBiome(ExperimentSituations s)
         {
             if (scienceExp.BiomeIsRelevantWhile(s))
@@ -442,6 +453,7 @@ namespace DMModuleScienceAnimateGeneric
 
         public bool canConduct()
         {
+            if (asteroidReports && AstSci.asteroidGrappled() || asteroidReports && AstSci.asteroidNear()) return true;
             return scienceExp.IsAvailableWhile(getSituation(), vessel.mainBody);
         }
 
@@ -473,45 +485,43 @@ namespace DMModuleScienceAnimateGeneric
         //This is for the title bar of the experiment results page
         public string situationCleanup(ExperimentSituations expSit, string b)
         {
-            if (vessel.landedAt != "")
-                return " from " + b;
+            if (AstSci.asteroidGrappled()) return " from the surface of " + vessel.mainBody.theName;
+            if (AstSci.asteroidNear()) return " while in space near " + vessel.mainBody.theName;
+            if (vessel.landedAt != "") return " from " + b;
+            if (b == "")
+            {
+                switch (expSit)
+                {
+                    case ExperimentSituations.SrfLanded:
+                        return " from  " + vessel.mainBody.theName + "'s surface";
+                    case ExperimentSituations.SrfSplashed:
+                        return " from " + vessel.mainBody.theName + "'s oceans";
+                    case ExperimentSituations.FlyingLow:
+                        return " while flying at " + vessel.mainBody.theName;
+                    case ExperimentSituations.FlyingHigh:
+                        return " from " + vessel.mainBody.theName + "'s upper atmosphere";
+                    case ExperimentSituations.InSpaceLow:
+                        return " while in space near " + vessel.mainBody.theName;
+                    default:
+                        return " while in space high over " + vessel.mainBody.theName;
+                }
+            }
             else
             {
-                if (b == "")
+                switch (expSit)
                 {
-                    switch (expSit)
-                    {
-                        case ExperimentSituations.SrfLanded:
-                            return " from  " + vessel.mainBody.theName + "'s surface";
-                        case ExperimentSituations.SrfSplashed:
-                            return " from " + vessel.mainBody.theName + "'s oceans";
-                        case ExperimentSituations.FlyingLow:
-                            return " while flying at " + vessel.mainBody.theName;
-                        case ExperimentSituations.FlyingHigh:
-                            return " from " + vessel.mainBody.theName + "'s upper atmosphere";
-                        case ExperimentSituations.InSpaceLow:
-                            return " while in space near " + vessel.mainBody.theName;
-                        default:
-                            return " while in space high over " + vessel.mainBody.theName;
-                    }
-                }
-                else
-                {
-                    switch (expSit)
-                    {
-                        case ExperimentSituations.SrfLanded:
-                            return " from " + vessel.mainBody.theName + "'s " + b;
-                        case ExperimentSituations.SrfSplashed:
-                            return " from " + vessel.mainBody.theName + "'s " + b;
-                        case ExperimentSituations.FlyingLow:
-                            return " while flying over " + vessel.mainBody.theName + "'s " + b;
-                        case ExperimentSituations.FlyingHigh:
-                            return " from the upper atmosphere over " + vessel.mainBody.theName + "'s " + b;
-                        case ExperimentSituations.InSpaceLow:
-                            return " from space just above " + vessel.mainBody.theName + "'s " + b;
-                        default:
-                            return " while in space high over " + vessel.mainBody.theName + "'s " + b;
-                    }
+                    case ExperimentSituations.SrfLanded:
+                        return " from " + vessel.mainBody.theName + "'s " + b;
+                    case ExperimentSituations.SrfSplashed:
+                        return " from " + vessel.mainBody.theName + "'s " + b;
+                    case ExperimentSituations.FlyingLow:
+                        return " while flying over " + vessel.mainBody.theName + "'s " + b;
+                    case ExperimentSituations.FlyingHigh:
+                        return " from the upper atmosphere over " + vessel.mainBody.theName + "'s " + b;
+                    case ExperimentSituations.InSpaceLow:
+                        return " from space just above " + vessel.mainBody.theName + "'s " + b;
+                    default:
+                        return " while in space high over " + vessel.mainBody.theName + "'s " + b;
                 }
             }
         }
