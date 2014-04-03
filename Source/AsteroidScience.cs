@@ -8,29 +8,30 @@ namespace DMModuleScienceAnimateGeneric
 {
     public class AsteroidScience
     {
-        protected DMModuleScienceAnimateGeneric ModSci = FlightGlobals.ActiveVessel.FindPartModulesImplementing<DMModuleScienceAnimateGeneric>().First();
+        protected static DMModuleScienceAnimateGeneric ModSci = FlightGlobals.ActiveVessel.FindPartModulesImplementing<DMModuleScienceAnimateGeneric>().First();
         
         //Let's make us some asteroid science
         //First construct a new celestial body from an asteroid
-        public CelestialBody AsteroidBody = null;
+        public static CelestialBody AsteroidBody = null;
 
-        public CelestialBody Asteroid()
+        public static CelestialBody Asteroid()
         {
             AsteroidBody = new CelestialBody();
             AsteroidBody.bodyName = "Asteroid P2X-459";
             AsteroidBody.use_The_InName = false;
-            asteroidValues(AsteroidBody);
+            //asteroidValues();
             return AsteroidBody;
         }
 
-        public void asteroidValues(CelestialBody body)
+        public static void asteroidValues()
         {
             //Find out how to vary based on asteroid size
-            body.scienceValues.LandedDataValue = 10f;
-            body.scienceValues.InSpaceLowDataValue = 4f;            
+            
+            AsteroidBody.scienceValues.LandedDataValue = 10f;
+            AsteroidBody.scienceValues.InSpaceLowDataValue = 4f;            
         }
 
-        public ExperimentSituations asteroidSituation()
+        public static ExperimentSituations asteroidSituation()
         {
             if (asteroidGrappled()) return ExperimentSituations.SrfLanded;
             else if (asteroidNear()) return ExperimentSituations.InSpaceLow;
@@ -38,7 +39,7 @@ namespace DMModuleScienceAnimateGeneric
         }
 
         //Are we attached to the asteroid
-        public bool asteroidGrappled()
+        public static bool asteroidGrappled()
         {
             if (FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().Count >= 1)
                 return true;
@@ -46,7 +47,7 @@ namespace DMModuleScienceAnimateGeneric
         }
 
         //Are we near the asteroid - need to figure this out
-        public bool asteroidNear()
+        public static bool asteroidNear()
         {
             return false;
         }
