@@ -411,27 +411,63 @@ namespace DMModuleScienceAnimateGeneric
             if (keepDeployedMode == 1) retractEvent();
         }
 
+        //protected ScienceSubject sub;
+
         //Create the science data
         public ScienceData makeScience()
         {            
             ExperimentSituations vesselSituation = getSituation();
             string biome = getBiome(vesselSituation);
             CelestialBody mainBody = vessel.mainBody;
-            if (asteroidReports && AstSci.asteroidGrappled() || asteroidReports && AstSci.asteroidNear())
+            if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear())
             {
-                AstSci.Asteroid();
-                vesselSituation = AstSci.asteroidSituation();
-                mainBody = AstSci.AsteroidBody;
-                biome = "";
+                AsteroidScience.AsteroidBody = AsteroidScience.Asteroid();                
+                //AstSci.AsteroidBody = AstSci.Asteroid();
+                //AstSci.AsteroidBody = AstSci.Asteroid();
+                vesselSituation = AsteroidScience.asteroidSituation();
+                mainBody = AsteroidScience.AsteroidBody;
+                biome = "";           
             }
             ScienceData data = null;
             ScienceExperiment exp = ResearchAndDevelopment.GetExperiment(experimentID);
-            ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, mainBody, biome);
+            ScienceSubject sub = new ScienceSubject("dmlaserblastscan@" + mainBody.name + "AsteroidSrf", exp.experimentTitle + situationCleanup(vesselSituation, biome), 2f, 1f, 10f);
+            sub.id = "dmlaserblastscan@" + mainBody.name + "AsteroidSrf";
+            ResearchAndDevelopment.GetSubjects().Add(sub);
+            //ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, mainBody, biome);    
             data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, experimentID, exp.experimentTitle + situationCleanup(vesselSituation, biome));
             data.subjectID = sub.id;
             return data;
         }
-        
+
+        //Let's make us some asteroid science
+        //First construct a new celestial body from an asteroid
+        public CelestialBody AsteroidBody = null;
+
+        public CelestialBody Asteroid()
+        {
+            AsteroidBody = new CelestialBody();
+            AsteroidBody.bodyName = "Asteroid P2X-459";
+            AsteroidBody.use_The_InName = false;
+            //AsteroidBody.scienceValues.LandedDataValue = 10f;
+            //AsteroidBody.scienceValues.InSpaceLowDataValue = 4f;
+            //asteroidValues(AsteroidBody);
+            return AsteroidBody;
+        }
+
+        public void asteroidValues(CelestialBody body)
+        {
+            //Find out how to vary based on asteroid size
+            body.scienceValues.LandedDataValue = 10f;
+            body.scienceValues.InSpaceLowDataValue = 4f;
+        }
+
+        public ExperimentSituations asteroidSituation()
+        {
+            if (asteroidGrappled()) return ExperimentSituations.SrfLanded;
+            else if (asteroidNear()) return ExperimentSituations.InSpaceLow;
+            else return getSituation();
+        }
+
         public string getBiome(ExperimentSituations s)
         {
             if (scienceExp.BiomeIsRelevantWhile(s))
@@ -451,10 +487,23 @@ namespace DMModuleScienceAnimateGeneric
             else return "";
         }
 
+        public bool asteroidGrappled()
+        {
+            if (FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().Count >= 1)
+                return true;
+            else return false;
+        }
+
+        //Are we near the asteroid - need to figure this out
+        public bool asteroidNear()
+        {
+            return false;
+        }
+
         public bool canConduct()
         {
-            if (asteroidReports && AstSci.asteroidGrappled() || asteroidReports && AstSci.asteroidNear()) return true;
-            return scienceExp.IsAvailableWhile(getSituation(), vessel.mainBody);
+            if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear()) return true;
+            else return scienceExp.IsAvailableWhile(getSituation(), vessel.mainBody);
         }
 
         //Get our experimental situation based on the vessel's current flight situation, fix stock bugs with aerobraking and reentry.
@@ -485,8 +534,8 @@ namespace DMModuleScienceAnimateGeneric
         //This is for the title bar of the experiment results page
         public string situationCleanup(ExperimentSituations expSit, string b)
         {
-            if (AstSci.asteroidGrappled()) return " from the surface of " + vessel.mainBody.theName;
-            if (AstSci.asteroidNear()) return " while in space near " + vessel.mainBody.theName;
+            if (AsteroidScience.asteroidGrappled()) return " from the surface of " + AsteroidBody.name;
+            if (AsteroidScience.asteroidNear()) return " while in space near " + AsteroidBody.name;
             if (vessel.landedAt != "") return " from " + b;
             if (b == "")
             {
