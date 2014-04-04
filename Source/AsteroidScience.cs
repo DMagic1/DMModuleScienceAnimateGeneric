@@ -40,7 +40,6 @@ namespace DMModuleScienceAnimateGeneric
                         body.bodyDescription = asteroidClass(partMass);
                         float asteroidDataValue = asteroidValue(body.bodyDescription);
                         body.scienceValues.InSpaceLowDataValue = asteroidDataValue;
-                        body.Mass = partMass;
                         break;
                     }
                 }
@@ -48,23 +47,23 @@ namespace DMModuleScienceAnimateGeneric
             else if (asteroidGrappled())
             {
                 Part asteroidPart = FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().First().part;
+                ModuleAsteroid AstMod = asteroidPart.FindModulesImplementing<ModuleAsteroid>().First();
                 float partMass = asteroidPart.mass;
                 body.bodyDescription = asteroidClass(partMass);
                 float asteroidDataValue = asteroidValue(body.bodyDescription);
                 body.scienceValues.LandedDataValue = asteroidDataValue * 2f;
-                body.Mass = partMass;
             }                        
         }
 
         //Need to figure out accurate mass ranges
         private static string asteroidClass(float mass)
         {
-            if (mass >= 0.5f && mass < 10f) return "Class A";
+            if (mass < 10f) return "Class A";
             if (mass >= 10f && mass < 50f) return "Class B";
             if (mass >= 50f && mass < 250f) return "Class C";
             if (mass >= 250f && mass < 1500f) return "Class D";
             if (mass >= 1500f && mass < 10000f) return "Class E";
-            return "Unknown Class";
+            return "Class Unholy";
         }
 
         private static float asteroidValue(string aclass)
@@ -81,16 +80,11 @@ namespace DMModuleScienceAnimateGeneric
                     return 8f;
                 case "Class E":
                     return 10f;
+                case "Class Unholy":
+                    return 30f;
                 default:
                     return 1f;
             }
-        }
-
-        public static ExperimentSituations asteroidSituation()
-        {
-            if (asteroidGrappled()) return ExperimentSituations.SrfLanded;
-            else if (asteroidNear()) return ExperimentSituations.InSpaceLow;
-            else return ModSci.getSituation();
         }
 
         //Are we attached to the asteroid, check if an asteroid part is on our vessel
@@ -116,7 +110,7 @@ namespace DMModuleScienceAnimateGeneric
                         Vector3 vesselPosition = FlightGlobals.ActiveVessel.transform.position;
                         distance = (asteroidPosition - vesselPosition).magnitude;
                         if (distance < 2000) return true;
-                        else return false;
+                        else continue;
                     }
                 }
             }
