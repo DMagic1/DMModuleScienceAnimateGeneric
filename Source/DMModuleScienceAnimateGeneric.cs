@@ -419,20 +419,21 @@ namespace DMModuleScienceAnimateGeneric
             ExperimentSituations vesselSituation = getSituation();
             string biome = getBiome(vesselSituation);
             CelestialBody mainBody = vessel.mainBody;
-
+            
             //Check for asteroids and alter the biome and celestialbody values as necessary
             if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear())
             {
                 AsteroidScience.AsteroidBody = AsteroidScience.Asteroid();
-                //vesselSituation = AsteroidScience.asteroidSituation();
                 mainBody = AsteroidScience.AsteroidBody;
-                biome = "";
+                biome = mainBody.bodyDescription;
             }
+
             ScienceData data = null;
             ScienceExperiment exp = ResearchAndDevelopment.GetExperiment(experimentID);
             ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, mainBody, biome);
-            data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, experimentID, exp.experimentTitle + situationCleanup(vesselSituation, biome, mainBody.name));
+            data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, experimentID, exp.experimentTitle + situationCleanup(vesselSituation, biome));
             data.subjectID = sub.id;
+            sub.title = data.title;
             return data;
         }
 
@@ -489,11 +490,11 @@ namespace DMModuleScienceAnimateGeneric
         }
 
         //This is for the title bar of the experiment results page
-        public string situationCleanup(ExperimentSituations expSit, string b, string name)
+        public string situationCleanup(ExperimentSituations expSit, string b)
         {
             //Add some asteroid specefic results
-            if (AsteroidScience.asteroidGrappled()) return " from the surface of " + name;
-            if (AsteroidScience.asteroidNear()) return " while in space near " + name;
+            if (asteroidReports && AsteroidScience.asteroidGrappled()) return " from the surface of a " + b + " asteroid";
+            if (asteroidReports && AsteroidScience.asteroidNear()) return " while in space near a " + b + " asteroid";
             if (vessel.landedAt != "") return " from " + b;
             if (b == "")
             {
