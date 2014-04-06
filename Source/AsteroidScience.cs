@@ -1,25 +1,47 @@
-﻿using System;
+﻿/* DMagic Orbital Science - Asteroid Science
+ * Class to setup asteroid science data
+ *
+ * Copyright (c) 2014, David Grandy
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without modification, 
+ * are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ * this list of conditions and the following disclaimer.
+ * 
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ * this list of conditions and the following disclaimer in the documentation and/or other materials 
+ * provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
+ * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT 
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
+
 using System.Collections.Generic;
-using System.Collections;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 
 namespace DMModuleScienceAnimateGeneric
 {
     public class AsteroidScience
     {
-        protected static DMModuleScienceAnimateGeneric ModSci = FlightGlobals.ActiveVessel.FindPartModulesImplementing<DMModuleScienceAnimateGeneric>().First();
+        private static Vessel asteroidVessel;
         private static double distance;
 
         //Let's make us some asteroid science
         //First construct a new celestial body from an asteroid
-        public static CelestialBody AsteroidBody = null;
 
         public static CelestialBody Asteroid()
         {
-            //Inherit values for the CelestialBody from an existing body, Kerbin in this case
-            AsteroidBody = FlightGlobals.fetch.bodies[1];
+            //Inherit values for the CelestialBody from an existing body, Eeloo in this case to minimize the risk of screwing something up
+            CelestialBody AsteroidBody = FlightGlobals.fetch.bodies[16];
             AsteroidBody.bodyName = "Asteroid";
             asteroidValues(AsteroidBody);
             return AsteroidBody;
@@ -30,39 +52,26 @@ namespace DMModuleScienceAnimateGeneric
         {
             if (asteroidNear())
             {
-                List<Vessel> vesselList = FlightGlobals.fetch.vessels;
-                foreach (Vessel v in vesselList)
-                {
-                    if (v.FindPartModulesImplementing<ModuleAsteroid>().Count > 0 && distance < 2000)
-                    {
-                        Part asteroidPart = v.FindPartModulesImplementing<ModuleAsteroid>().First().part;
-                        float partMass = asteroidPart.mass;
-                        body.bodyDescription = asteroidClass(partMass);
-                        float asteroidDataValue = asteroidValue(body.bodyDescription);
-                        body.scienceValues.InSpaceLowDataValue = asteroidDataValue;
-                        break;
-                    }
-                }
+                Part asteroidPart = asteroidVessel.FindPartModulesImplementing<ModuleAsteroid>().First().part;
+                body.bodyDescription = asteroidClass(asteroidPart.mass);
+                body.scienceValues.InSpaceLowDataValue = asteroidValue(body.bodyDescription);
             }
             else if (asteroidGrappled())
             {
                 Part asteroidPart = FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().First().part;
-                ModuleAsteroid AstMod = asteroidPart.FindModulesImplementing<ModuleAsteroid>().First();
-                float partMass = asteroidPart.mass;
-                body.bodyDescription = asteroidClass(partMass);
-                float asteroidDataValue = asteroidValue(body.bodyDescription);
-                body.scienceValues.LandedDataValue = asteroidDataValue * 2f;
-            }                        
+                body.bodyDescription = asteroidClass(asteroidPart.mass);
+                body.scienceValues.LandedDataValue = asteroidValue(body.bodyDescription) * 1.5f;
+            }
         }
-
+        
         //Need to figure out accurate mass ranges
         private static string asteroidClass(float mass)
         {
             if (mass < 10f) return "Class A";
             if (mass >= 10f && mass < 50f) return "Class B";
-            if (mass >= 50f && mass < 250f) return "Class C";
-            if (mass >= 250f && mass < 1500f) return "Class D";
-            if (mass >= 1500f && mass < 10000f) return "Class E";
+            if (mass >= 50f && mass < 200f) return "Class C";
+            if (mass >= 200f && mass < 750f) return "Class D";
+            if (mass >= 750f && mass < 3000f) return "Class E";
             return "Class Unholy";
         }
 
@@ -71,11 +80,11 @@ namespace DMModuleScienceAnimateGeneric
             switch (aclass)
             {
                 case "Class A":
-                    return 2f;
+                    return 1.5f;
                 case "Class B":
-                    return 4f;
+                    return 3f;
                 case "Class C":
-                    return 6f;
+                    return 5f;
                 case "Class D":
                     return 8f;
                 case "Class E":
@@ -90,8 +99,7 @@ namespace DMModuleScienceAnimateGeneric
         //Are we attached to the asteroid, check if an asteroid part is on our vessel
         public static bool asteroidGrappled()
         {
-            if (FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().Count >= 1)
-                return true;
+            if (FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().Count > 0) return true;
             else return false;
         }
 
@@ -109,12 +117,18 @@ namespace DMModuleScienceAnimateGeneric
                         Vector3 asteroidPosition = asteroidPart.transform.position;
                         Vector3 vesselPosition = FlightGlobals.ActiveVessel.transform.position;
                         distance = (asteroidPosition - vesselPosition).magnitude;
-                        if (distance < 2000) return true;
+                        if (distance < 2000)
+                        {
+                            asteroidVessel = v;
+                            return true;
+                        }
                         else continue;
                     }
                 }
             }
             return false;
         }
+
+
     }
 }
