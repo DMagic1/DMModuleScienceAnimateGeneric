@@ -96,14 +96,10 @@ namespace DMModuleScienceAnimateGeneric
             base.OnStart(state);
             this.part.force_activate();
             anim = part.FindModelAnimators(animationName)[0];
-            if (state == StartState.Editor)
-            {
-                editorSetup();
-            }
+            if (state == StartState.Editor) editorSetup();
             else
-            {                
+            {
                 setup();
-                eventsCheck();
                 if (IsDeployed) primaryAnimator(1f, 1f, WrapMode.Default);
             }
         }
@@ -130,6 +126,12 @@ namespace DMModuleScienceAnimateGeneric
                     scienceReportList.Add(data);
                 }
             }
+        }
+
+        public override void OnInitialize()
+        {
+            base.OnInitialize();
+            eventsCheck();
         }
 
         public override void OnUpdate()
@@ -419,24 +421,42 @@ namespace DMModuleScienceAnimateGeneric
             ExperimentSituations vesselSituation = getSituation();
             string biome = getBiome(vesselSituation);
             CelestialBody mainBody = vessel.mainBody;
+
+            //Make sure we don't screw up Eeloo's CelestialBody values, record the defaults here
+            bool asteroid = false;
+            string bodyDescription = FlightGlobals.fetch.bodies[16].bodyDescription;
+            string bodyName = FlightGlobals.fetch.bodies[16].bodyName;
+            float bodyLandedValue = FlightGlobals.fetch.bodies[16].scienceValues.LandedDataValue;
+            float bodySpaceValue = FlightGlobals.fetch.bodies[16].scienceValues.InSpaceLowDataValue;
             
             //Check for asteroids and alter the biome and celestialbody values as necessary
             if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear())
             {
-                AsteroidScience.AsteroidBody = AsteroidScience.Asteroid();
-                mainBody = AsteroidScience.AsteroidBody;
+                asteroid = true;
+                mainBody = AsteroidScience.Asteroid();
                 biome = mainBody.bodyDescription;
             }
 
             ScienceData data = null;
             ScienceExperiment exp = ResearchAndDevelopment.GetExperiment(experimentID);
             ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, mainBody, biome);
+
+            //Replace Eeloo's CelestialBody values with defaults if necessary
+            if (asteroid)
+            {
+                mainBody.bodyDescription = bodyDescription;
+                mainBody.bodyName = bodyName;
+                mainBody.scienceValues.LandedDataValue = bodyLandedValue;
+                mainBody.scienceValues.InSpaceLowDataValue = bodySpaceValue;
+                asteroid = false;
+            }
+
             data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, experimentID, exp.experimentTitle + situationCleanup(vesselSituation, biome));
             data.subjectID = sub.id;
             sub.title = data.title;
             return data;
         }
-
+        
         public string getBiome(ExperimentSituations s)
         {
             if (scienceExp.BiomeIsRelevantWhile(s))
