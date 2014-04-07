@@ -85,7 +85,6 @@ namespace DMModuleScienceAnimateGeneric
 
         protected Animation anim;
         protected ScienceExperiment scienceExp;
-        protected AsteroidScience AstSci;
         private bool resourceOn = false;
         private int dataIndex = 0;
 

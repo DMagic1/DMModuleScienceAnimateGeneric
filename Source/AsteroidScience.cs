@@ -30,15 +30,14 @@ using UnityEngine;
 
 namespace DMModuleScienceAnimateGeneric
 {
-    public class AsteroidScience
+    class AsteroidScience
     {
         private static Vessel asteroidVessel;
-        private static double distance;
 
         //Let's make us some asteroid science
         //First construct a new celestial body from an asteroid
 
-        public static CelestialBody Asteroid()
+        internal static CelestialBody Asteroid()
         {
             //Inherit values for the CelestialBody from an existing body, Eeloo in this case to minimize the risk of screwing something up
             CelestialBody AsteroidBody = FlightGlobals.fetch.bodies[16];
@@ -97,14 +96,14 @@ namespace DMModuleScienceAnimateGeneric
         }
 
         //Are we attached to the asteroid, check if an asteroid part is on our vessel
-        public static bool asteroidGrappled()
+        internal static bool asteroidGrappled()
         {
             if (FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().Count > 0) return true;
             else return false;
         }
 
         //Are we near the asteroid, cycle through existing vessels, only target asteroids within 2km
-        public static bool asteroidNear()
+        internal static bool asteroidNear()
         {
             List<Vessel> vesselList = FlightGlobals.fetch.vessels;
             foreach (Vessel v in vesselList)
@@ -116,7 +115,7 @@ namespace DMModuleScienceAnimateGeneric
                         Part asteroidPart = v.FindPartModulesImplementing<ModuleAsteroid>().First().part;
                         Vector3 asteroidPosition = asteroidPart.transform.position;
                         Vector3 vesselPosition = FlightGlobals.ActiveVessel.transform.position;
-                        distance = (asteroidPosition - vesselPosition).magnitude;
+                        double distance = (asteroidPosition - vesselPosition).magnitude;
                         if (distance < 2000)
                         {
                             asteroidVessel = v;
