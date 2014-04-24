@@ -30,7 +30,7 @@ using UnityEngine;
 
 namespace DMModuleScienceAnimateGeneric
 {
-    class AsteroidScience
+    internal class AsteroidScience
     {
         private static Vessel asteroidVessel;
 
