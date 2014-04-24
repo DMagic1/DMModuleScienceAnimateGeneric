@@ -48,6 +48,7 @@
   <ItemGroup>
     <Compile Include="AsteroidScience.cs" />
     <Compile Include="DMModuleScienceAnimateGeneric.cs" />
+    <Compile Include="PlanetaryIndices.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
