@@ -82,6 +82,8 @@ namespace DMModuleScienceAnimateGeneric
         public float resourceExpCost = 0;
         [KSPField]
         public bool asteroidReports = false;
+        [KSPField]
+        public static uint planetaryMask = 1 << 17;
 
         protected Animation anim;
         protected ScienceExperiment scienceExp;
@@ -486,6 +488,7 @@ namespace DMModuleScienceAnimateGeneric
 
         public bool canConduct()
         {
+            if (!planetaryScience.planetConfirm(planetaryMask)) return false;
             return scienceExp.IsAvailableWhile(getSituation(), vessel.mainBody);
         }
 
