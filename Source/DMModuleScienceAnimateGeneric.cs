@@ -100,7 +100,10 @@ namespace DMModuleScienceAnimateGeneric
         {
             base.OnStart(state);
             this.part.force_activate();
-            anim = part.FindModelAnimators(animationName)[0];
+            if (part.FindModelAnimators(animationName).Length > 0 && !string.IsNullOrEmpty(animationName))
+            {
+                anim = part.FindModelAnimators(animationName).First();
+            }
             if (state == StartState.Editor) editorSetup();
             else
             {
@@ -144,12 +147,12 @@ namespace DMModuleScienceAnimateGeneric
             base.OnUpdate();
             if (resourceOn)
             {
-                float cost = resourceExpCost * Time.deltaTime;
+                float cost = resourceExpCost * TimeWarp.deltaTime;
                 if (part.RequestResource(resourceExperiment, cost) < cost)
                 {
                     StopCoroutine("WaitForAnimation");
                     resourceOn = false;
-                    ScreenMessages.PostScreenMessage("Not enough power, shutting down experiment", 4f, ScreenMessageStyle.UPPER_CENTER);
+                    ScreenMessages.PostScreenMessage("Not enough " + resourceExperiment + ", shutting down experiment", 4f, ScreenMessageStyle.UPPER_CENTER);
                     if (keepDeployedMode == 0 || keepDeployedMode == 1) retractEvent();
                 }
             }
@@ -160,7 +163,7 @@ namespace DMModuleScienceAnimateGeneric
             if (resourceExpCost > 0)
             {
                 string info = base.GetInfo();
-                info += "Requires:\n-" + resourceExperiment + ": " + resourceExpCost.ToString() + "/s for " + waitForAnimationTime.ToString() + "s\n";
+                info += ".\nRequires:\n-" + resourceExperiment + ": " + resourceExpCost.ToString() + "/s for " + waitForAnimationTime.ToString() + "s\n";
                 return info;
             }
             else return base.GetInfo();
@@ -370,7 +373,7 @@ namespace DMModuleScienceAnimateGeneric
                             if (!IsDeployed)
                             {
                                 deployEvent();
-                                if (deployingMessage != null) ScreenMessages.PostScreenMessage(deployingMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
+                                if (!string.IsNullOrEmpty(deployingMessage)) ScreenMessages.PostScreenMessage(deployingMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
                                 if (experimentWaitForAnimation)
                                 {
                                     if (resourceExpCost > 0) resourceOn = true;
@@ -386,6 +389,12 @@ namespace DMModuleScienceAnimateGeneric
                             else runExperiment();
                         }
                     }
+                    else if (resourceExpCost > 0)
+                    {
+                        if (!string.IsNullOrEmpty(deployingMessage)) ScreenMessages.PostScreenMessage(deployingMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
+                        resourceOn = true;
+                        StartCoroutine("WaitForAnimation", waitForAnimationTime);
+                    }
                     else runExperiment();
                 }
                 else
@@ -393,7 +402,7 @@ namespace DMModuleScienceAnimateGeneric
                     if (customFailMessage != null) ScreenMessages.PostScreenMessage(customFailMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
                 }
             }
-            else ReviewData();
+            else eventsCheck();
         }
 
         new public void DeployAction(KSPActionParam param)
