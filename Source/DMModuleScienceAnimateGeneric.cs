@@ -39,6 +39,8 @@ namespace DMModuleScienceAnimateGeneric
         public string customFailMessage = null;
         [KSPField]
         public string deployingMessage = null;
+        [KSPField]
+        public string planetFailMessage = null;
         [KSPField(isPersistant = true)]
         public bool IsDeployed;
         [KSPField]
@@ -83,7 +85,7 @@ namespace DMModuleScienceAnimateGeneric
         [KSPField]
         public bool asteroidReports = false;
         [KSPField]
-        public static uint planetaryMask = 1 << 17;
+        public int planetaryMask = 524287;
 
         protected Animation anim;
         protected ScienceExperiment scienceExp;
@@ -399,10 +401,6 @@ namespace DMModuleScienceAnimateGeneric
                     }
                     else runExperiment();
                 }
-                else
-                {
-                    if (customFailMessage != null) ScreenMessages.PostScreenMessage(customFailMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
-                }
             }
             else eventsCheck();
         }
@@ -488,8 +486,19 @@ namespace DMModuleScienceAnimateGeneric
 
         public bool canConduct()
         {
-            if (!planetaryScience.planetConfirm(planetaryMask)) return false;
-            return scienceExp.IsAvailableWhile(getSituation(), vessel.mainBody);
+            if (!planetaryScience.planetConfirm(planetaryMask))
+            {
+                if (!string.IsNullOrEmpty(planetFailMessage)) ScreenMessages.PostScreenMessage(planetFailMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
+                return false;
+            }
+            else print("Planet checks out");
+            if (!scienceExp.IsAvailableWhile(getSituation(), vessel.mainBody))
+            {
+                if (!string.IsNullOrEmpty(customFailMessage)) ScreenMessages.PostScreenMessage(customFailMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
+                return false;
+            }
+            else print("Situation checks out");
+            return true;
         }
 
         //Get our experimental situation based on the vessel's current flight situation, fix stock bugs with aerobraking and reentry.
