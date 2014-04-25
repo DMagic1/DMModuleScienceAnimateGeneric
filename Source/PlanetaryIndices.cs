@@ -1,5 +1,5 @@
 ﻿/* DMagic Orbital Science - Planetary Index
- * Class and enum to setup limit experiments to certain planets
+ * Class and enum to limit experiments to certain planets
  *
  * Copyright (c) 2014, David Grandy
  * All rights reserved.
@@ -28,6 +28,7 @@ using System;
 
 namespace DMModuleScienceAnimateGeneric
 {
+    //Enum allows the user to select any combination of planets to allow science on
     [Flags]
     internal enum PlanetaryIndices
     {
@@ -54,6 +55,7 @@ namespace DMModuleScienceAnimateGeneric
 
     internal class planetaryScience
     {
+        //Need to convert our current celestial body into a value from the enum, special cases for asteroids and mod planets
         internal static PlanetaryIndices planetIndex(int flightGlobalsIndex)
         {
             switch (flightGlobalsIndex)
@@ -100,13 +102,15 @@ namespace DMModuleScienceAnimateGeneric
         }
 
         //A simple check to see if the specified planets match the active vessel's current planet
-        internal static bool planetConfirm(int pMask)
+        internal static bool planetConfirm(int pMask, bool t)
         {
-            DMModuleScienceAnimateGeneric obj = new DMModuleScienceAnimateGeneric();
             PlanetaryIndices index = new PlanetaryIndices();
-            if (obj.asteroidReports && AsteroidScience.asteroidGrappled() || obj.asteroidReports && AsteroidScience.asteroidNear()) index = planetIndex(100);
+
+            if (t && AsteroidScience.asteroidGrappled() || t && AsteroidScience.asteroidNear()) index = planetIndex(100);
             else index = planetIndex(FlightGlobals.ActiveVessel.mainBody.flightGlobalsIndex);
+
             PlanetaryIndices mask = (PlanetaryIndices)pMask;
+
             if ((mask & index) == index) return true;
             else return false;
         }
