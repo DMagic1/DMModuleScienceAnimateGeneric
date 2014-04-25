@@ -486,7 +486,7 @@ namespace DMModuleScienceAnimateGeneric
 
         public bool canConduct()
         {
-            if (!planetaryScience.planetConfirm(planetaryMask))
+            if (!planetaryScience.planetConfirm(planetaryMask, asteroidReports))
             {
                 if (!string.IsNullOrEmpty(planetFailMessage)) ScreenMessages.PostScreenMessage(planetFailMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
                 return false;
