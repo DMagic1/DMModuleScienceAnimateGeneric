@@ -93,10 +93,10 @@ namespace DMModuleScienceAnimateGeneric
         private int dataIndex = 0;
 
         //Record some default values for Eeloo here to prevent the asteroid science method from screwing them up
-        private string bodyDescription = "There’s been a considerable amount of controversy around the status of Eeloo as being a proper planet or a just “lump of ice going around the Sun”. The debate is still ongoing, since most academic summits held to address the issue have devolved into, on good days, petty name calling, and on worse ones, all-out brawls.";
-        private string bodyName = "Eeloo";
-        private float bodyLandedValue = 15;
-        private float bodySpaceValue = 12;
+        private const string bodyDescription = "There’s been a considerable amount of controversy around the status of Eeloo as being a proper planet or a just “lump of ice going around the Sun”. The debate is still ongoing, since most academic summits held to address the issue have devolved into, on good days, petty name calling, and on worse ones, all-out brawls.";
+        private const string bodyName = "Eeloo";
+        private const float bodyLandedValue = 15;
+        private const float bodySpaceValue = 12;
         
         List<ScienceData> scienceReportList = new List<ScienceData>();
 
@@ -151,13 +151,16 @@ namespace DMModuleScienceAnimateGeneric
             base.OnUpdate();
             if (resourceOn)
             {
-                float cost = resourceExpCost * TimeWarp.deltaTime;
-                if (part.RequestResource(resourceExperiment, cost) < cost)
+                if (PartResourceLibrary.Instance.GetDefinition(resourceExperiment) != null)
                 {
-                    StopCoroutine("WaitForAnimation");
-                    resourceOn = false;
-                    ScreenMessages.PostScreenMessage("Not enough " + resourceExperiment + ", shutting down experiment", 4f, ScreenMessageStyle.UPPER_CENTER);
-                    if (keepDeployedMode == 0 || keepDeployedMode == 1) retractEvent();
+                    float cost = resourceExpCost * TimeWarp.deltaTime;
+                    if (part.RequestResource(resourceExperiment, cost) < cost)
+                    {
+                        StopCoroutine("WaitForAnimation");
+                        resourceOn = false;
+                        ScreenMessages.PostScreenMessage("Not enough " + resourceExperiment + ", shutting down experiment", 4f, ScreenMessageStyle.UPPER_CENTER);
+                        if (keepDeployedMode == 0 || keepDeployedMode == 1) retractEvent();
+                    }
                 }
             }
         }
