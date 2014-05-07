@@ -91,12 +91,7 @@ namespace DMModuleScienceAnimateGeneric
         protected ScienceExperiment scienceExp;
         private bool resourceOn = false;
         private int dataIndex = 0;
-
-        //Record some default values for Eeloo here to prevent the asteroid science method from screwing them up
-        private const string bodyDescription = "There’s been a considerable amount of controversy around the status of Eeloo as being a proper planet or a just “lump of ice going around the Sun”. The debate is still ongoing, since most academic summits held to address the issue have devolved into, on good days, petty name calling, and on worse ones, all-out brawls.";
-        private const string bodyName = "Eeloo";
-        private const float bodyLandedValue = 15;
-        private const float bodySpaceValue = 12;
+        private AsteroidScience newAsteroid = null;
         
         List<ScienceData> scienceReportList = new List<ScienceData>();
 
@@ -438,33 +433,23 @@ namespace DMModuleScienceAnimateGeneric
             ExperimentSituations vesselSituation = getSituation();
             string biome = getBiome(vesselSituation);
             CelestialBody mainBody = vessel.mainBody;
-            bool asteroid = false;            
-            
-            //Check for asteroids and alter the biome and celestialbody values as necessary
-            if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear())
-            {
-                asteroid = true;
-                mainBody = AsteroidScience.Asteroid();
-                biome = mainBody.bodyDescription;
-            }
 
             ScienceData data = null;
             ScienceExperiment exp = ResearchAndDevelopment.GetExperiment(experimentID);
             ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, mainBody, biome);
 
-            //Replace Eeloo's CelestialBody values with defaults if necessary
-            if (asteroid)
+            //Check for asteroids and alter the subject as necessary
+            if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear())
             {
-                mainBody.bodyDescription = bodyDescription;
-                mainBody.bodyName = bodyName;
-                mainBody.scienceValues.LandedDataValue = bodyLandedValue;
-                mainBody.scienceValues.InSpaceLowDataValue = bodySpaceValue;
-                asteroid = false;
+                newAsteroid = new AsteroidScience();
+                sub.subjectValue = newAsteroid.sciMult;
+                sub.scienceCap = exp.scienceCap * newAsteroid.sciMult;
+                biome = newAsteroid.aClass;
+                sub.id = exp.id + "@Asteroid" + vesselSituation.ToString() + biome;
             }
 
-            data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, experimentID, exp.experimentTitle + situationCleanup(vesselSituation, biome));
-            data.subjectID = sub.id;
-            sub.title = data.title;
+            sub.title = exp.experimentTitle + situationCleanup(vesselSituation, biome);
+            data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, sub.id, sub.title);
             return data;
         }
         

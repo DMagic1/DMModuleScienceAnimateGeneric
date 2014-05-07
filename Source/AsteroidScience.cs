@@ -32,49 +32,53 @@ namespace DMModuleScienceAnimateGeneric
 {
     internal class AsteroidScience
     {
+        internal string aClass = null;
+        internal float sciMult = 0f;
         private static Vessel asteroidVessel;
 
-        //Let's make us some asteroid science
-        //First construct a new celestial body from an asteroid
-
-        internal static CelestialBody Asteroid()
+        internal AsteroidScience()
         {
-            //Inherit values for the CelestialBody from an existing body, Eeloo in this case to minimize the risk of screwing something up
-            CelestialBody AsteroidBody = FlightGlobals.fetch.bodies[16];
-            AsteroidBody.bodyName = "Asteroid";
-            asteroidValues(AsteroidBody);
-            return AsteroidBody;
+            asteroidVariables();
         }
 
         //Alter some of the values to give us asteroid specific results based on asteroid class and current situation
-        private static void asteroidValues(CelestialBody body)
+        private void asteroidVariables()
         {
             if (asteroidNear())
             {
-                Part asteroidPart = asteroidVessel.FindPartModulesImplementing<ModuleAsteroid>().First().part;
-                body.bodyDescription = asteroidClass(asteroidPart.mass);
-                body.scienceValues.InSpaceLowDataValue = asteroidValue(body.bodyDescription);
+                ModuleAsteroid asteroidM = asteroidVessel.FindPartModulesImplementing<ModuleAsteroid>().First();
+                aClass = asteroidClass(asteroidM.prefabBaseURL);
+                sciMult = asteroidValue(aClass);
             }
             else if (asteroidGrappled())
             {
-                Part asteroidPart = FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().First().part;
-                body.bodyDescription = asteroidClass(asteroidPart.mass);
-                body.scienceValues.LandedDataValue = asteroidValue(body.bodyDescription) * 1.5f;
+                ModuleAsteroid asteroidM = FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleAsteroid>().First();
+                aClass = asteroidClass(asteroidM.prefabBaseURL);
+                sciMult = asteroidValue(aClass) * 1.5f;
             }
         }
-        
-        //Need to figure out accurate mass ranges
-        private static string asteroidClass(float mass)
+
+        //Less dumb method for getting the asteroid class, take the last character from ModuleAsteroid.prefabBaseURL
+        private string asteroidClass(string s)
         {
-            if (mass < 10f) return "Class A";
-            if (mass >= 10f && mass < 50f) return "Class B";
-            if (mass >= 50f && mass < 200f) return "Class C";
-            if (mass >= 200f && mass < 750f) return "Class D";
-            if (mass >= 750f && mass < 3000f) return "Class E";
-            return "Class Unholy";
+            switch (s[s.Length - 1])
+            {
+                case 'A':
+                    return "Class A";
+                case 'B':
+                    return "Class B";
+                case 'C':
+                    return "Class C";
+                case 'D':
+                    return "Class D";
+                case 'E':
+                    return "Class E";
+                default:
+                    return "Class Unholy";
+            }
         }
 
-        private static float asteroidValue(string aclass)
+        private float asteroidValue(string aclass)
         {
             switch (aclass)
             {
