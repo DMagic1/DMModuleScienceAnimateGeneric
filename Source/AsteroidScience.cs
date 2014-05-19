@@ -32,17 +32,20 @@ namespace DMModuleScienceAnimateGeneric
 {
     internal class AsteroidScience
     {
-        internal string aClass = null;
-        internal float sciMult = 0f;
         private static Vessel asteroidVessel;
+        internal string aClass = null;
+        internal float sciMult = 1f;
+        internal CelestialBody body = null;
 
         internal AsteroidScience()
         {
-            asteroidVariables();
+            body = FlightGlobals.Bodies[16];
+            body.bodyName = "Asteroid";
+            asteroidValues();
         }
 
         //Alter some of the values to give us asteroid specific results based on asteroid class and current situation
-        private void asteroidVariables()
+        private void asteroidValues()
         {
             if (asteroidNear())
             {
@@ -57,8 +60,7 @@ namespace DMModuleScienceAnimateGeneric
                 sciMult = asteroidValue(aClass) * 1.5f;
             }
         }
-
-        //Less dumb method for getting the asteroid class, take the last character from ModuleAsteroid.prefabBaseURL
+        
         private string asteroidClass(string s)
         {
             switch (s[s.Length - 1])
@@ -125,7 +127,6 @@ namespace DMModuleScienceAnimateGeneric
                             asteroidVessel = v;
                             return true;
                         }
-                        else continue;
                     }
                 }
             }
