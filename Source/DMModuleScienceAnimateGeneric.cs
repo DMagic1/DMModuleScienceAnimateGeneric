@@ -89,10 +89,14 @@ namespace DMModuleScienceAnimateGeneric
 
         protected Animation anim;
         protected ScienceExperiment scienceExp;
+        protected CelestialBody mainBody;
+        private AsteroidScience newAsteroid = null;
         private bool resourceOn = false;
         private int dataIndex = 0;
-        private AsteroidScience newAsteroid = null;
-        
+
+        //Record some default values for Eeloo here to prevent the asteroid science method from screwing them up
+        private const string bodyName = "Eeloo";
+                
         List<ScienceData> scienceReportList = new List<ScienceData>();
 
         public override void OnStart(StartState state)
@@ -181,6 +185,7 @@ namespace DMModuleScienceAnimateGeneric
             Events["toggleEvent"].guiName = toggleEventGUIName;
             if (waitForAnimationTime == -1) waitForAnimationTime = anim[animationName].length / animSpeed;
             if (experimentID != null) scienceExp = ResearchAndDevelopment.GetExperiment(experimentID);
+            if (FlightGlobals.Bodies[16].bodyName != "Eeloo") FlightGlobals.Bodies[16].bodyName = bodyName;
         }
 
         public void editorSetup()
@@ -293,51 +298,12 @@ namespace DMModuleScienceAnimateGeneric
             ResetExperiment();
         }
 
-        //This ridiculous chunk of code seems to make the EVA data collection work properly
-        public class EVAIScienceContainer : IScienceDataContainer
-        {
-            private bool rerunnable = true;
-            List<ScienceData> EVADataList = new List<ScienceData>();
-            public EVAIScienceContainer(List<ScienceData> dataList, bool rerun)
-            {
-                foreach (ScienceData data in dataList)
-                {
-                    EVADataList.Add(data);
-                }
-                rerunnable = rerun;
-            }
-            public bool IsRerunnable()
-            {
-                return rerunnable;
-            }
-            public int GetScienceCount()
-            {
-                return EVADataList.Count;
-            }
-            public void ReviewData()
-            {
-            }
-            public void ReviewDataItem(ScienceData data)
-            {
-            }
-            public void DumpData(ScienceData data)
-            {
-            }
-            public ScienceData[] GetData()
-            {
-                return EVADataList.ToArray();
-            }
-        }
-
-        EVAIScienceContainer EVAIScience;
-
         new public void CollectDataExternalEvent()
         {   
             List<ModuleScienceContainer> EVACont = FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleScienceContainer>();
-            EVAIScience = new EVAIScienceContainer(scienceReportList, rerunnable);
             if (scienceReportList.Count > 0)
             {
-                if (EVACont.First().StoreData(new List<IScienceDataContainer> { EVAIScience }, false)) DumpAllData(scienceReportList);
+                if (EVACont.First().StoreData(new List<IScienceDataContainer> { this }, false)) DumpAllData(scienceReportList);
             }
         }
         
@@ -421,35 +387,41 @@ namespace DMModuleScienceAnimateGeneric
             ScienceData data = makeScience();
             scienceReportList.Add(data);
             dataIndex = scienceReportList.Count - 1;
-            ReviewData();
+            if (data != null) ReviewData();
             if (keepDeployedMode == 1) retractEvent();
         }
-
-        //protected ScienceSubject sub;
-
+        
         //Create the science data
         public ScienceData makeScience()
         {
             ExperimentSituations vesselSituation = getSituation();
             string biome = getBiome(vesselSituation);
-            CelestialBody mainBody = vessel.mainBody;
+            mainBody = vessel.mainBody;
+            bool asteroid = false;
+
+            //Check for asteroids and alter the biome and celestialbody values as necessary
+            if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear())
+            {
+                newAsteroid = new AsteroidScience();
+                mainBody = newAsteroid.body;
+                biome = newAsteroid.aClass;    
+                asteroid = true;            
+            }
 
             ScienceData data = null;
             ScienceExperiment exp = ResearchAndDevelopment.GetExperiment(experimentID);
             ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, mainBody, biome);
+            sub.title = exp.experimentTitle + situationCleanup(vesselSituation, biome);
 
-            //Check for asteroids and alter the subject as necessary
-            if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear())
+            if (asteroid)
             {
-                newAsteroid = new AsteroidScience();
                 sub.subjectValue = newAsteroid.sciMult;
-                sub.scienceCap = exp.scienceCap * newAsteroid.sciMult;
-                biome = newAsteroid.aClass;
-                sub.id = exp.id + "@Asteroid" + vesselSituation.ToString() + biome;
+                sub.scienceCap = exp.scienceCap * sub.subjectValue;
+                mainBody.bodyName = bodyName;
+                asteroid = false;
             }
 
-            sub.title = exp.experimentTitle + situationCleanup(vesselSituation, biome);
-            data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, sub.id, sub.title);
+            if (sub != null) data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, sub.id, sub.title);
             return data;
         }
         
@@ -479,13 +451,11 @@ namespace DMModuleScienceAnimateGeneric
                 if (!string.IsNullOrEmpty(planetFailMessage)) ScreenMessages.PostScreenMessage(planetFailMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
                 return false;
             }
-            else print("Planet checks out");
             if (!scienceExp.IsAvailableWhile(getSituation(), vessel.mainBody))
             {
                 if (!string.IsNullOrEmpty(customFailMessage)) ScreenMessages.PostScreenMessage(customFailMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
                 return false;
             }
-            else print("Situation checks out");
             return true;
         }
 
@@ -643,7 +613,6 @@ namespace DMModuleScienceAnimateGeneric
                 base.DumpData(data);
                 if (keepDeployedMode == 0) retractEvent();
                 scienceReportList.Clear();
-                //print("Dump Data");
             }
             eventsCheck();
         }
@@ -659,7 +628,6 @@ namespace DMModuleScienceAnimateGeneric
                 }
                 scienceReportList.Clear();
                 if (keepDeployedMode == 0) retractEvent();
-                //print("Dump All Data");
             }
             eventsCheck();
         }
@@ -672,7 +640,6 @@ namespace DMModuleScienceAnimateGeneric
                 base.DumpData(data);
                 if (keepDeployedMode == 0) retractEvent();
                 scienceReportList.Remove(data);
-                //print("Dump Data Local");
             }
             eventsCheck();
         }
@@ -689,12 +656,10 @@ namespace DMModuleScienceAnimateGeneric
                 if (keepDeployedMode == 0) retractEvent();
             }
             eventsCheck();
-            //print("Discard data from page");
         }
 
         private void onKeepData(ScienceData data)
         {
-            //print("Store date from page");
         }
         
         private void onTransmitData(ScienceData data)
@@ -704,7 +669,6 @@ namespace DMModuleScienceAnimateGeneric
             {
                 tranList.OrderBy(ScienceUtil.GetTransmitterScore).First().TransmitData(new List<ScienceData> {data});
                 DumpData(data);
-                //print("Transmit data from page");
             }
             else ScreenMessages.PostScreenMessage("No transmitters available on this vessel.", 4f, ScreenMessageStyle.UPPER_LEFT);
         }
@@ -714,13 +678,11 @@ namespace DMModuleScienceAnimateGeneric
             List<ModuleScienceLab> labList = vessel.FindPartModulesImplementing<ModuleScienceLab>();
             if (checkLabOps() && scienceReportList.Count > 0) labList.OrderBy(ScienceUtil.GetLabScore).First().StartCoroutine(labList.First().ProcessData(data, new Callback<ScienceData>(onComplete)));
             else ScreenMessages.PostScreenMessage("No operational lab modules on this vessel. Cannot analyze data.", 4f, ScreenMessageStyle.UPPER_CENTER);
-            //print("Send data to lab");
         }
 
         private void onComplete(ScienceData data)
         {
             ReviewData();
-            //print("Data processed in lab");
         }
 
         //Maybe unnecessary, can be folded into a simpler method???
