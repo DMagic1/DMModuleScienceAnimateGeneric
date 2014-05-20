@@ -89,13 +89,12 @@ namespace DMModuleScienceAnimateGeneric
 
         protected Animation anim;
         protected ScienceExperiment scienceExp;
-        protected CelestialBody mainBody;
         private AsteroidScience newAsteroid = null;
         private bool resourceOn = false;
         private int dataIndex = 0;
 
         //Record some default values for Eeloo here to prevent the asteroid science method from screwing them up
-        private const string bodyName = "Eeloo";
+        private const string bodyNameFixed = "Eeloo";
                 
         List<ScienceData> scienceReportList = new List<ScienceData>();
 
@@ -185,7 +184,7 @@ namespace DMModuleScienceAnimateGeneric
             Events["toggleEvent"].guiName = toggleEventGUIName;
             if (waitForAnimationTime == -1) waitForAnimationTime = anim[animationName].length / animSpeed;
             if (experimentID != null) scienceExp = ResearchAndDevelopment.GetExperiment(experimentID);
-            if (FlightGlobals.Bodies[16].bodyName != "Eeloo") FlightGlobals.Bodies[16].bodyName = bodyName;
+            if (FlightGlobals.Bodies[16].bodyName != "Eeloo") FlightGlobals.Bodies[16].bodyName = bodyNameFixed;
         }
 
         public void editorSetup()
@@ -396,7 +395,7 @@ namespace DMModuleScienceAnimateGeneric
         {
             ExperimentSituations vesselSituation = getSituation();
             string biome = getBiome(vesselSituation);
-            mainBody = vessel.mainBody;
+            CelestialBody mainBody = vessel.mainBody;
             bool asteroid = false;
 
             //Check for asteroids and alter the biome and celestialbody values as necessary
@@ -417,12 +416,29 @@ namespace DMModuleScienceAnimateGeneric
             {
                 sub.subjectValue = newAsteroid.sciMult;
                 sub.scienceCap = exp.scienceCap * sub.subjectValue;
-                mainBody.bodyName = bodyName;
+                mainBody.bodyName = bodyNameFixed;
                 asteroid = false;
+            }
+            else
+            {
+                sub.subjectValue = fixSubjectValue(vesselSituation, mainBody, sub.subjectValue);
+                sub.scienceCap = exp.scienceCap * sub.subjectValue;
             }
 
             if (sub != null) data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, sub.id, sub.title);
             return data;
+        }
+
+        private float fixSubjectValue(ExperimentSituations s, CelestialBody b, float f)
+        {
+            float subV = f;
+            if (s == ExperimentSituations.SrfLanded) subV = b.scienceValues.LandedDataValue;
+            else if (s == ExperimentSituations.SrfSplashed) subV = b.scienceValues.SplashedDataValue;
+            else if (s == ExperimentSituations.FlyingLow) subV = b.scienceValues.FlyingLowDataValue;
+            else if (s == ExperimentSituations.FlyingHigh) subV = b.scienceValues.FlyingHighDataValue;
+            else if (s == ExperimentSituations.InSpaceLow) subV = b.scienceValues.InSpaceLowDataValue;
+            else if (s == ExperimentSituations.InSpaceHigh) subV = b.scienceValues.InSpaceHighDataValue;
+            return subV;
         }
         
         public string getBiome(ExperimentSituations s)
