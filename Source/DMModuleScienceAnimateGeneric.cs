@@ -36,11 +36,11 @@ namespace DMModuleScienceAnimateGeneric
     public class DMModuleScienceAnimateGeneric : ModuleScienceExperiment, IScienceDataContainer
     {
         [KSPField]
-        public string customFailMessage = null;
+        public string customFailMessage = "Can't conduct experiment here";
         [KSPField]
         public string deployingMessage = null;
         [KSPField]
-        public string planetFailMessage = null;
+        public string planetFailMessage = "Can't conduct experiment here";
         [KSPField(isPersistant = true)]
         public bool IsDeployed;
         [KSPField]
