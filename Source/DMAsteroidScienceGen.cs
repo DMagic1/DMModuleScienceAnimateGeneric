@@ -30,14 +30,14 @@ using UnityEngine;
 
 namespace DMModuleScienceAnimateGeneric
 {
-    internal class AsteroidScience
+    internal class DMAsteroidScienceGen
     {
         private static Vessel asteroidVessel;
         internal string aClass = null;
         internal float sciMult = 1f;
         internal CelestialBody body = null;
 
-        internal AsteroidScience()
+        internal DMAsteroidScienceGen()
         {
             body = FlightGlobals.Bodies[16];
             body.bodyName = "Asteroid";

@@ -30,7 +30,7 @@ namespace DMModuleScienceAnimateGeneric
 {
     //Enum allows the user to select any combination of planets to allow science on
     [Flags]
-    internal enum PlanetaryIndices
+    internal enum DMPlanetaryIndicesGen
     {
         Sun = 1 << 0,
         Kerbin = 1 << 1,
@@ -53,63 +53,63 @@ namespace DMModuleScienceAnimateGeneric
         All = 1 << 18, //The All value should allow for experiments to be used on any mod planets
     }
 
-    internal class planetaryScience
+    internal class planetaryScienceIndex
     {
         //Need to convert our current celestial body into a value from the enum, special cases for asteroids and mod planets
-        internal static PlanetaryIndices planetIndex(int flightGlobalsIndex)
+        internal static DMPlanetaryIndicesGen planetIndex(int flightGlobalsIndex)
         {
             switch (flightGlobalsIndex)
             {
                 case 0:
-                    return PlanetaryIndices.Sun;
+                    return DMPlanetaryIndicesGen.Sun;
                 case 1:
-                    return PlanetaryIndices.Kerbin;
+                    return DMPlanetaryIndicesGen.Kerbin;
                 case 2:
-                    return PlanetaryIndices.Mun;
+                    return DMPlanetaryIndicesGen.Mun;
                 case 3:
-                    return PlanetaryIndices.Minmus;
+                    return DMPlanetaryIndicesGen.Minmus;
                 case 4:
-                    return PlanetaryIndices.Moho;
+                    return DMPlanetaryIndicesGen.Moho;
                 case 5:
-                    return PlanetaryIndices.Eve;
+                    return DMPlanetaryIndicesGen.Eve;
                 case 6:
-                    return PlanetaryIndices.Duna;
+                    return DMPlanetaryIndicesGen.Duna;
                 case 7:
-                    return PlanetaryIndices.Ike;
+                    return DMPlanetaryIndicesGen.Ike;
                 case 8:
-                    return PlanetaryIndices.Jool;
+                    return DMPlanetaryIndicesGen.Jool;
                 case 9:
-                    return PlanetaryIndices.Laythe;
+                    return DMPlanetaryIndicesGen.Laythe;
                 case 10:
-                    return PlanetaryIndices.Vall;
+                    return DMPlanetaryIndicesGen.Vall;
                 case 11:
-                    return PlanetaryIndices.Bop;
+                    return DMPlanetaryIndicesGen.Bop;
                 case 12:
-                    return PlanetaryIndices.Tylo;
+                    return DMPlanetaryIndicesGen.Tylo;
                 case 13:
-                    return PlanetaryIndices.Gilly;
+                    return DMPlanetaryIndicesGen.Gilly;
                 case 14:
-                    return PlanetaryIndices.Pol;
+                    return DMPlanetaryIndicesGen.Pol;
                 case 15:
-                    return PlanetaryIndices.Dres;
+                    return DMPlanetaryIndicesGen.Dres;
                 case 16:
-                    return PlanetaryIndices.Eeloo;
+                    return DMPlanetaryIndicesGen.Eeloo;
                 case 100:
-                    return PlanetaryIndices.Asteroid;
+                    return DMPlanetaryIndicesGen.Asteroid;
                 default:
-                    return PlanetaryIndices.All;
+                    return DMPlanetaryIndicesGen.All;
             }
         }
 
         //A simple check to see if the specified planets match the active vessel's current planet
         internal static bool planetConfirm(int pMask, bool t)
         {
-            PlanetaryIndices index = new PlanetaryIndices();
+            DMPlanetaryIndicesGen index = new DMPlanetaryIndicesGen();
 
-            if (t && AsteroidScience.asteroidGrappled() || t && AsteroidScience.asteroidNear()) index = planetIndex(100);
+            if (t && DMAsteroidScienceGen.asteroidGrappled() || t && DMAsteroidScienceGen.asteroidNear()) index = planetIndex(100);
             else index = planetIndex(FlightGlobals.ActiveVessel.mainBody.flightGlobalsIndex);
 
-            PlanetaryIndices mask = (PlanetaryIndices)pMask;
+            DMPlanetaryIndicesGen mask = (DMPlanetaryIndicesGen)pMask;
 
             if ((mask & index) == index) return true;
             else return false;

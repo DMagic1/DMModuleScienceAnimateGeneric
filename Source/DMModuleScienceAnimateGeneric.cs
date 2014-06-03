@@ -89,7 +89,7 @@ namespace DMModuleScienceAnimateGeneric
 
         protected Animation anim;
         protected ScienceExperiment scienceExp;
-        private AsteroidScience newAsteroid = null;
+        private DMAsteroidScienceGen newAsteroid = null;
         private bool resourceOn = false;
         private int dataIndex = 0;
 
@@ -399,9 +399,9 @@ namespace DMModuleScienceAnimateGeneric
             bool asteroid = false;
 
             //Check for asteroids and alter the biome and celestialbody values as necessary
-            if (asteroidReports && AsteroidScience.asteroidGrappled() || asteroidReports && AsteroidScience.asteroidNear())
+            if (asteroidReports && DMAsteroidScienceGen.asteroidGrappled() || asteroidReports && DMAsteroidScienceGen.asteroidNear())
             {
-                newAsteroid = new AsteroidScience();
+                newAsteroid = new DMAsteroidScienceGen();
                 mainBody = newAsteroid.body;
                 biome = newAsteroid.aClass;    
                 asteroid = true;            
@@ -425,7 +425,7 @@ namespace DMModuleScienceAnimateGeneric
                 sub.scienceCap = exp.scienceCap * sub.subjectValue;
             }
 
-            if (sub != null) data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, xmitDataScalar / 2, sub.id, sub.title);
+            if (sub != null) data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, 0.5f, sub.id, sub.title);
             return data;
         }
 
@@ -462,7 +462,7 @@ namespace DMModuleScienceAnimateGeneric
 
         public bool canConduct()
         {
-            if (!planetaryScience.planetConfirm(planetaryMask, asteroidReports))
+            if (!planetaryScienceIndex.planetConfirm(planetaryMask, asteroidReports))
             {
                 if (!string.IsNullOrEmpty(planetFailMessage)) ScreenMessages.PostScreenMessage(planetFailMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
                 return false;
@@ -479,8 +479,8 @@ namespace DMModuleScienceAnimateGeneric
         public ExperimentSituations getSituation()
         {
             //Check for asteroids, return values that should sync with existing parts
-            if (asteroidReports && AsteroidScience.asteroidGrappled()) return ExperimentSituations.SrfLanded;
-            if (asteroidReports && AsteroidScience.asteroidNear()) return ExperimentSituations.InSpaceLow;
+            if (asteroidReports && DMAsteroidScienceGen.asteroidGrappled()) return ExperimentSituations.SrfLanded;
+            if (asteroidReports && DMAsteroidScienceGen.asteroidNear()) return ExperimentSituations.InSpaceLow;
             switch (vessel.situation)
             {
                 case Vessel.Situations.LANDED:
@@ -489,7 +489,7 @@ namespace DMModuleScienceAnimateGeneric
                 case Vessel.Situations.SPLASHED:
                     return ExperimentSituations.SrfSplashed;
                 default:
-                    if (vessel.altitude < vessel.mainBody.maxAtmosphereAltitude && vessel.mainBody.atmosphere)
+                    if (vessel.altitude < (vessel.mainBody.atmosphereScaleHeight * 1000 * Math.Log(1e6)) && vessel.mainBody.atmosphere)
                     {
                         if (vessel.altitude < vessel.mainBody.scienceValues.flyingAltitudeThreshold)
                             return ExperimentSituations.FlyingLow;
@@ -507,8 +507,8 @@ namespace DMModuleScienceAnimateGeneric
         public string situationCleanup(ExperimentSituations expSit, string b)
         {
             //Add some asteroid specefic results
-            if (asteroidReports && AsteroidScience.asteroidGrappled()) return " from the surface of a " + b + " asteroid";
-            if (asteroidReports && AsteroidScience.asteroidNear()) return " while in space near a " + b + " asteroid";
+            if (asteroidReports && DMAsteroidScienceGen.asteroidGrappled()) return " from the surface of a " + b + " asteroid";
+            if (asteroidReports && DMAsteroidScienceGen.asteroidNear()) return " while in space near a " + b + " asteroid";
             if (vessel.landedAt != "") return " from " + b;
             if (b == "")
             {
