@@ -161,6 +161,7 @@ namespace DMModuleScienceAnimateGeneric
                     }
                 }
             }
+            eventsCheck();
         }
 
         public override string GetInfo()
