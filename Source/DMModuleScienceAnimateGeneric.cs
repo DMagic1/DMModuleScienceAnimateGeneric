@@ -185,7 +185,7 @@ namespace DMModuleScienceAnimateGeneric
 			{
 				lastInOperableState = false;
 				if (!string.IsNullOrEmpty(sampleAnim))
-					print("");
+					secondaryAnimator(sampleAnim, -1f * animSpeed, experimentsNumber * (1f / experimentsLimit), anim2[sampleAnim].length);
 				experimentsNumber = 0;
 				experimentsReturned = 0;
 				if (keepDeployedMode == 0) retractEvent();
@@ -195,15 +195,12 @@ namespace DMModuleScienceAnimateGeneric
 
 		public override string GetInfo()
 		{
+			string info = base.GetInfo();
 			if (resourceExpCost > 0)
-			{
-				string info = base.GetInfo();
 				info += ".\nRequires:\n-" + resourceExperiment + ": " + resourceExpCost.ToString() + "/s for " + waitForAnimationTime.ToString() + "s\n";
-				if (experimentsLimit > 1)
-					info += "Max Samples: " + experimentsLimit + "\n";
-				return info;
-			}
-			else return base.GetInfo();
+			if (experimentsLimit > 1)
+				info += ".\nMax Samples: " + experimentsLimit + "\n";
+			return info;
 		}
 
 		private void setup()
