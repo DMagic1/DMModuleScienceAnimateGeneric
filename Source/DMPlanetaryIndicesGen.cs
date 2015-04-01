@@ -56,7 +56,7 @@ namespace DMModuleScienceAnimateGeneric
 		All = 1 << 18, //The All value should allow for experiments to be used on any mod planets
 	}
 
-	internal class planetaryScienceIndex
+	internal static class planetaryScienceIndex
 	{
 		//Need to convert our current celestial body into a value from the enum, special cases for asteroids and mod planets
 		internal static DMPlanetaryIndicesGen planetIndex(int flightGlobalsIndex)
@@ -109,15 +109,17 @@ namespace DMModuleScienceAnimateGeneric
 		{
 			DMPlanetaryIndicesGen index = new DMPlanetaryIndicesGen();
 
-			if (t && DMAsteroidScienceGen.asteroidGrappled() || t && DMAsteroidScienceGen.asteroidNear())
+			if (t && DMAsteroidScienceGen.AsteroidGrappled || t && DMAsteroidScienceGen.AsteroidNear)
 				index = planetIndex(100);
 			else
 				index = planetIndex(FlightGlobals.ActiveVessel.mainBody.flightGlobalsIndex);
 
 			DMPlanetaryIndicesGen mask = (DMPlanetaryIndicesGen)pMask;
 
-			if ((mask & index) == index) return true;
-			else return false;
+			if ((mask & index) == index)
+				return true;
+			else
+				return false;
 		}
 
 	}
