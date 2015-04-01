@@ -103,7 +103,6 @@ namespace DMModuleScienceAnimateGeneric
 		private Animation anim;
 		private Animation anim2;
 		private ScienceExperiment scienceExp;
-		private DMAsteroidScienceGen newAsteroid = null;
 		private bool resourceOn = false;
 		private int dataIndex = 0;
 		private bool lastInOperableState = false;
@@ -114,6 +113,28 @@ namespace DMModuleScienceAnimateGeneric
 
 		private List<ScienceData> initialDataList = new List<ScienceData>();
 		private List<ScienceData> storedScienceReportList = new List<ScienceData>();
+
+		/// <summary>
+		/// For external use to determine if a module can conduct science
+		/// </summary>
+		/// <param name="MSE">The base ModuleScienceExperiment instance</param>
+		/// <returns>True if the experiment can be conducted under current conditions</returns>
+		public static bool conduct(ModuleScienceExperiment MSE)
+		{
+			if (MSE.GetType() != typeof(DMModuleScienceAnimateGeneric))
+				return false;
+
+			DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)MSE;
+			try
+			{
+				return DMMod.canConduct();
+			}
+			catch (Exception e)
+			{
+				Debug.LogWarning("[DM Module Science Animate] Error in casting ModuleScienceExperiment to DMModuleScienceAnimate; Invalid Part Module... : " + e);
+				return false;
+			}
+		}
 
 		#endregion
 
@@ -211,10 +232,17 @@ namespace DMModuleScienceAnimateGeneric
 			Events["deployEvent"].guiName = startEventGUIName;
 			Events["retractEvent"].guiName = endEventGUIName;
 			Events["toggleEvent"].guiName = toggleEventGUIName;
+			Events["CollectDataExternalEvent"].guiName = collectActionName;
+			Events["ResetExperimentExternal"].guiName = resetActionName;
+			Events["ResetExperiment"].guiName = resetActionName;
 			Events["DeployExperiment"].guiName = experimentActionName;
 			Events["DeployExperiment"].guiActiveUnfocused = externalDeploy;
 			Events["DeployExperiment"].externalToEVAOnly = externalDeploy;
 			Events["DeployExperiment"].unfocusedRange = interactionRange;
+			Actions["deployAction"].guiName = startEventGUIName;
+			Actions["retractAction"].guiName = endEventGUIName;
+			Actions["toggleAction"].guiName = toggleEventGUIName;
+			Actions["DeployAction"].guiName = experimentActionName;
 			if (waitForAnimationTime == -1)
 				waitForAnimationTime = anim[animationName].length / animSpeed;
 			if (experimentID != null)
@@ -244,8 +272,8 @@ namespace DMModuleScienceAnimateGeneric
 		private void eventsCheck()
 		{
 			Events["ResetExperiment"].active = experimentsLimit <= 1 && storedScienceReportList.Count > 0;
-			Events["ResetExperimentExternal"].active = storedScienceReportList.Count > 0;
-			Events["CollectDataExternalEvent"].active = storedScienceReportList.Count > 0;
+			Events["ResetExperimentExternal"].active = storedScienceReportList.Count > 0 && resettableOnEVA;
+			Events["CollectDataExternalEvent"].active = storedScienceReportList.Count > 0 && dataIsCollectable;
 			Events["DeployExperiment"].active = !Inoperable;
 			Events["DeployExperiment"].guiActiveUnfocused = !Inoperable && externalDeploy;
 			Events["ReviewDataEvent"].active = storedScienceReportList.Count > 0;
@@ -363,6 +391,7 @@ namespace DMModuleScienceAnimateGeneric
 					if (keepDeployedMode == 0) retractEvent();
 					storedScienceReportList.Clear();
 				}
+				Deployed = false;
 			}
 		}
 
@@ -396,6 +425,7 @@ namespace DMModuleScienceAnimateGeneric
 				if (experimentsNumber < 0)
 					experimentsNumber = 0;
 				if (keepDeployedMode == 0) retractEvent();
+				Deployed = false;
 			}
 		}
 
@@ -462,18 +492,26 @@ namespace DMModuleScienceAnimateGeneric
 		public void runExperiment()
 		{
 			ScienceData data = makeScience();
-			if (experimentsLimit <= 1)
-			{
-				dataIndex = 0;
-				storedScienceReportList.Add(data);
-				ReviewData();
-			}
+			if (data == null)
+				Debug.LogError("[DM Module Science Animate] Something Went Wrong Here; Null Science Data Returned; Please Report This On The KSP Forum With Output.log Data");
 			else
 			{
-				initialDataList.Add(data);
-				initialResultsPage();
+				if (experimentsLimit <= 1)
+				{
+					dataIndex = 0;
+					storedScienceReportList.Add(data);
+					Deployed = true;
+					ReviewData();
+				}
+				else
+				{
+					initialDataList.Add(data);
+					if (experimentsReturned >= experimentsLimit - 1)
+						Deployed = true;
+					initialResultsPage();
+				}
+				if (keepDeployedMode == 1) retractEvent();
 			}
-			if (keepDeployedMode == 1) retractEvent();
 		}
 
 		//Create the science data
@@ -482,37 +520,37 @@ namespace DMModuleScienceAnimateGeneric
 			ExperimentSituations vesselSituation = getSituation();
 			string biome = getBiome(vesselSituation);
 			CelestialBody mainBody = vessel.mainBody;
+			DMAsteroidScienceGen newAsteroid = null;
 			bool asteroid = false;
 
 			//Check for asteroids and alter the biome and celestialbody values as necessary
-			if (asteroidReports && (DMAsteroidScienceGen.asteroidGrappled() || DMAsteroidScienceGen.asteroidNear()))
+			if (asteroidReports && (DMAsteroidScienceGen.AsteroidGrappled || DMAsteroidScienceGen.AsteroidNear))
 			{
 				newAsteroid = new DMAsteroidScienceGen();
-				mainBody = newAsteroid.body;
-				biome = newAsteroid.aClass;
+				mainBody = newAsteroid.Body;
+				biome = newAsteroid.AClass;
 				asteroid = true;
 			}
 
 			ScienceData data = null;
-			ScienceExperiment exp = ResearchAndDevelopment.GetExperiment(experimentID);
-			ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(exp, vesselSituation, mainBody, biome);
-			sub.title = exp.experimentTitle + situationCleanup(vesselSituation, biome);
+			ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(scienceExp, vesselSituation, mainBody, biome);
+			sub.title = scienceExp.experimentTitle + situationCleanup(vesselSituation, biome);
 
 			if (asteroid)
 			{
-				sub.subjectValue = newAsteroid.sciMult;
-				sub.scienceCap = exp.scienceCap * sub.subjectValue;
+				sub.subjectValue = newAsteroid.SciMult;
+				sub.scienceCap = scienceExp.scienceCap * sub.subjectValue;
 				mainBody.bodyName = bodyNameFixed;
 				asteroid = false;
 			}
 			else
 			{
 				sub.subjectValue = fixSubjectValue(vesselSituation, mainBody, sub.subjectValue);
-				sub.scienceCap = exp.scienceCap * sub.subjectValue;
+				sub.scienceCap = scienceExp.scienceCap * sub.subjectValue;
 			}
 
 			if (sub != null)
-				data = new ScienceData(exp.baseValue * sub.dataScale, xmitDataScalar, 0.5f, sub.id, sub.title);
+				data = new ScienceData(scienceExp.baseValue * sub.dataScale, xmitDataScalar, 0f, sub.id, sub.title);
 			return data;
 		}
 
@@ -534,14 +572,13 @@ namespace DMModuleScienceAnimateGeneric
 			{
 				switch (vessel.landedAt)
 				{
-					case "LaunchPad":
-						return vessel.landedAt;
-					case "Runway":
-						return vessel.landedAt;
-					case "KSC":
-						return vessel.landedAt;
+					case "":
+						if (vessel.mainBody.BiomeMap != null)
+							return vessel.mainBody.BiomeMap.GetAtt(vessel.latitude * Mathf.Deg2Rad, vessel.longitude * Mathf.Deg2Rad).name;
+						else
+							return "";
 					default:
-						return FlightGlobals.currentMainBody.BiomeMap.GetAtt(vessel.latitude * Mathf.Deg2Rad, vessel.longitude * Mathf.Deg2Rad).name;
+						return Vessel.GetLandedAtString(vessel.landedAt);
 				}
 			}
 			else return "";
@@ -553,6 +590,11 @@ namespace DMModuleScienceAnimateGeneric
 			if (Inoperable)
 			{
 				failMessage = "Experiment is no longer functional; must be reset at a science lab or returned to Kerbin";
+				return false;
+			}
+			else if (Deployed)
+			{
+				failMessage = storageFullMessage;
 				return false;
 			}
 			else if ((experimentsNumber >= experimentsLimit) && experimentsLimit > 1)
@@ -579,6 +621,11 @@ namespace DMModuleScienceAnimateGeneric
 					failMessage = customFailMessage;
 				return false;
 			}
+			else if (scienceExp.requireAtmosphere && !vessel.mainBody.atmosphere)
+			{
+				failMessage = customFailMessage;
+				return false;
+			}
 			else
 				return true;
 		}
@@ -587,8 +634,8 @@ namespace DMModuleScienceAnimateGeneric
 		public ExperimentSituations getSituation()
 		{
 			//Check for asteroids, return values that should sync with existing parts
-			if (asteroidReports && DMAsteroidScienceGen.asteroidGrappled()) return ExperimentSituations.SrfLanded;
-			if (asteroidReports && DMAsteroidScienceGen.asteroidNear()) return ExperimentSituations.InSpaceLow;
+			if (asteroidReports && DMAsteroidScienceGen.AsteroidGrappled) return ExperimentSituations.SrfLanded;
+			if (asteroidReports && DMAsteroidScienceGen.AsteroidNear) return ExperimentSituations.InSpaceLow;
 			switch (vessel.situation)
 			{
 				case Vessel.Situations.LANDED:
@@ -615,8 +662,8 @@ namespace DMModuleScienceAnimateGeneric
 		public string situationCleanup(ExperimentSituations expSit, string b)
 		{
 			//Add some asteroid specefic results
-			if (asteroidReports && DMAsteroidScienceGen.asteroidGrappled()) return " from the surface of a " + b + " asteroid";
-			if (asteroidReports && DMAsteroidScienceGen.asteroidNear()) return " while in space near a " + b + " asteroid";
+			if (asteroidReports && DMAsteroidScienceGen.AsteroidGrappled) return " from the surface of a " + b + " asteroid";
+			if (asteroidReports && DMAsteroidScienceGen.AsteroidNear) return " while in space near a " + b + " asteroid";
 			if (vessel.landedAt != "") return " from " + b;
 			if (b == "")
 			{
@@ -696,6 +743,7 @@ namespace DMModuleScienceAnimateGeneric
 			{
 				experimentsReturned++;
 				Inoperable = !IsRerunnable();
+				Deployed = Inoperable;
 				storedScienceReportList.Remove(data);
 			}
 		}
@@ -706,6 +754,7 @@ namespace DMModuleScienceAnimateGeneric
 			{
 				experimentsReturned++;
 				Inoperable = !IsRerunnable();
+				Deployed = Inoperable;
 				initialDataList.Remove(data);
 			}
 		}
@@ -775,6 +824,7 @@ namespace DMModuleScienceAnimateGeneric
 				experimentsNumber--;
 				if (experimentsNumber < 0)
 					experimentsNumber = 0;
+				Deployed = false;
 			}
 		}
 
@@ -821,6 +871,7 @@ namespace DMModuleScienceAnimateGeneric
 			{
 				initialDataList.Remove(data);
 				if (keepDeployedMode == 0) retractEvent();
+				Deployed = false;
 			}
 		}
 
