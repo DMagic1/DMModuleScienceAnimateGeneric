@@ -33,7 +33,7 @@ namespace DMModuleScienceAnimateGeneric
 {
 	//Enum allows the user to select any combination of planets to allow science on
 	[Flags]
-	internal enum DMPlanetaryIndicesGen
+	public enum DMPlanetaryIndicesGen
 	{
 		Sun = 1 << 0,
 		Kerbin = 1 << 1,
@@ -56,7 +56,7 @@ namespace DMModuleScienceAnimateGeneric
 		All = 1 << 18, //The All value should allow for experiments to be used on any mod planets
 	}
 
-	internal static class planetaryScienceIndex
+	public static class planetaryScienceIndex
 	{
 		//Need to convert our current celestial body into a value from the enum, special cases for asteroids and mod planets
 		internal static DMPlanetaryIndicesGen planetIndex(int flightGlobalsIndex)

@@ -32,7 +32,7 @@ using UnityEngine;
 
 namespace DMModuleScienceAnimateGeneric
 {
-	internal class DMAsteroidScienceGen
+	public class DMAsteroidScienceGen
 	{
 		private static ModuleAsteroid modAsteroid;
 		private string aClass = null;
