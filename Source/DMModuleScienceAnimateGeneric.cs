@@ -32,6 +32,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using System.Collections;
+using FinePrint.Utilities;
 
 namespace DMModuleScienceAnimateGeneric
 {
@@ -101,6 +102,14 @@ namespace DMModuleScienceAnimateGeneric
 		public bool externalDeploy = false;
 		[KSPField]
 		public int resetLevel = 0;
+		[KSPField]
+		public string requiredParts = "";
+		[KSPField]
+		public string requiredModules = "";
+		[KSPField]
+		public bool excludeAtmosphere = false;
+		[KSPField]
+		public string excludeAtmosphereMessage = "This experiment can't be conducted within an atmosphere";
 
 		private Animation anim;
 		private Animation anim2;
@@ -110,11 +119,17 @@ namespace DMModuleScienceAnimateGeneric
 		private bool lastInOperableState = false;
 		private string failMessage = "";
 
+		private List<string> requiredPartList = new List<string>();
+		private List<string> requiredModuleList = new List<string>();
+
 		//Record some default values for Eeloo here to prevent the asteroid science method from screwing them up
 		private string bodyNameFixed = "Eeloo";
 
 		private List<ScienceData> initialDataList = new List<ScienceData>();
 		private List<ScienceData> storedScienceReportList = new List<ScienceData>();
+
+		private static List<Type> loadedPartModules = new List<Type>();
+		private static bool partModulesLoaded = false;
 
 		/// <summary>
 		/// For external use to determine if a module can conduct science
@@ -126,9 +141,9 @@ namespace DMModuleScienceAnimateGeneric
 			if (MSE.GetType() != typeof(DMModuleScienceAnimateGeneric))
 				return false;
 
-			DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)MSE;
 			try
 			{
+				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)MSE;
 				return DMMod.canConduct();
 			}
 			catch (Exception e)
@@ -144,6 +159,21 @@ namespace DMModuleScienceAnimateGeneric
 
 		public override void OnStart(StartState state)
 		{
+			if (!partModulesLoaded)
+			{
+				partModulesLoaded = true;
+
+				try
+				{
+					loadedPartModules = AssemblyLoader.loadedAssemblies.Where(a => a.types.ContainsKey(typeof(PartModule))).SelectMany(b => b.types[typeof(PartModule)]).ToList();
+				}
+				catch (Exception e)
+				{
+					print("[DM Scince Animate Generic] Failure Loading Part Module List: " + e);
+					loadedPartModules = new List<Type>();
+				}
+			}
+
 			base.OnStart(state);
 			if (part.FindModelAnimators(animationName).Length > 0 && !string.IsNullOrEmpty(animationName))
 				anim = part.FindModelAnimators(animationName).FirstOrDefault();
@@ -227,6 +257,26 @@ namespace DMModuleScienceAnimateGeneric
 				info += ".\nRequires:\n-" + resourceExperiment + ": " + resourceExpCost.ToString() + "/s for " + waitForAnimationTime.ToString() + "s\n";
 			if (experimentsLimit > 1)
 				info += ".\nMax Samples: " + experimentsLimit + "\n";
+			if (requiredPartList.Count > 0)
+			{
+				info += ".\nRequired Parts: ";
+				for (int i = 0; i < requiredPartList.Count; i++)
+				{
+					info += requiredPartList[i] + "\n";
+				}
+			}
+			if (requiredModuleList.Count > 0)
+			{
+				info += ".\nRequired Modules: ";
+				for (int i = 0; i < requiredModuleList.Count; i++)
+				{
+					info += requiredModuleList[i] + "\n";
+				}
+			}
+			if (excludeAtmosphere)
+			{
+				info += ".\nExperiment Can't Be Run In An Atmosphere";
+			}
 			if (!rerunnable)
 				info += string.Format("Scientist Level For Reset: {0}", resetLevel);
 			return info;
@@ -262,6 +312,67 @@ namespace DMModuleScienceAnimateGeneric
 			//	FlightGlobals.Bodies[16].bodyName = bodyNameFixed;
 			if (labDataBoost == 0)
 				labDataBoost = xmitDataScalar / 2;
+
+			requiredPartList = parsePartStringList(requiredParts);
+			requiredModuleList = parseModuleStringList(requiredModules);
+		}
+
+		private List<string> parsePartStringList(string source)
+		{
+			List<string> list = new List<string>();
+
+			if (string.IsNullOrEmpty(source))
+				return list;
+
+			string[] s = source.Split(',');
+
+			for (int i = 0; i < s.Length; i++)
+			{
+				string p = s[i];
+
+				AvailablePart a = PartLoader.getPartInfoByName(p.Replace('_', '.'));
+
+				if (a == null)
+					continue;
+
+				list.Add(p);
+			}
+
+			return list;
+		}
+
+		private List<string> parseModuleStringList(string source)
+		{
+			List<string> list = new List<string>();
+
+			if (string.IsNullOrEmpty(source))
+				return list;
+
+			string[] s = source.Split(',');
+
+			if (s.Length <= 0)
+				return list;
+
+			for (int i = 0; i < s.Length; i++)
+			{
+				string m = s[i];
+
+				for (int j = 0; j < loadedPartModules.Count; j++)
+				{
+					Type t = loadedPartModules[j];
+
+					if (t == null)
+						continue;
+
+					if (t.Name == m)
+					{
+						list.Add(m);
+						break;
+					}
+				}
+			}
+
+			return list;
 		}
 
 		private void editorSetup()
@@ -588,7 +699,7 @@ namespace DMModuleScienceAnimateGeneric
 			}
 
 			if (sub != null)
-				data = new ScienceData(scienceExp.baseValue * sub.dataScale, xmitDataScalar, 0f, sub.id, sub.title);
+				data = new ScienceData(scienceExp.baseValue * sub.dataScale, xmitDataScalar, 0f, sub.id, sub.title, false, part.flightID);
 			return data;
 		}
 
@@ -659,10 +770,49 @@ namespace DMModuleScienceAnimateGeneric
 					failMessage = customFailMessage;
 				return false;
 			}
+			else if (excludeAtmosphere && vessel.mainBody.atmosphere)
+			{
+				if (!string.IsNullOrEmpty(excludeAtmosphereMessage))
+					failMessage = excludeAtmosphereMessage;
+				return false;
+			}
 			else if (scienceExp.requireAtmosphere && !vessel.mainBody.atmosphere)
 			{
 				failMessage = customFailMessage;
 				return false;
+			}
+			else if (requiredPartList.Count > 0)
+			{
+				for (int i = 0; i < requiredPartList.Count; i++)
+				{
+					string partName = requiredPartList[i];
+
+					if (string.IsNullOrEmpty(partName))
+						continue;
+
+					if (!VesselUtilities.VesselHasPartName(partName, vessel))
+					{
+						var p = PartLoader.getPartInfoByName(partName.Replace('_', '.'));
+						failMessage = "A " + p == null ? partName : p.title + " is required on the vessel for this experiment";
+						return false;
+					}
+				}
+			}
+			else if (requiredModuleList.Count > 0)
+			{
+				for (int i = 0; i < requiredModuleList.Count; i++)
+				{
+					string moduleName = requiredModuleList[i];
+
+					if (string.IsNullOrEmpty(moduleName))
+						continue;
+
+					if (!VesselUtilities.VesselHasModuleName(moduleName, vessel))
+					{
+						failMessage = "A " + moduleName + " module is required on the vessel for this experiment";
+						return false;
+					}
+				}
 			}
 			else if (FlightGlobals.ActiveVessel.isEVA)
 			{
@@ -671,11 +821,11 @@ namespace DMModuleScienceAnimateGeneric
 					failMessage = "";
 					return false;
 				}
-				else
-					return true;
 			}
 			else
 				return true;
+
+			return true;
 		}
 
 		//Get our experimental situation based on the vessel's current flight situation, fix stock bugs with aerobraking and reentry.
@@ -692,7 +842,7 @@ namespace DMModuleScienceAnimateGeneric
 				case Vessel.Situations.SPLASHED:
 					return ExperimentSituations.SrfSplashed;
 				default:
-					if (vessel.altitude < vessel.mainBody.atmosphereDepth && vessel.mainBody.atmosphere)
+					if (vessel.mainBody.atmosphere && vessel.altitude < vessel.mainBody.atmosphereDepth)
 					{
 						if (vessel.altitude < vessel.mainBody.scienceValues.flyingAltitudeThreshold)
 							return ExperimentSituations.FlyingLow;
@@ -770,6 +920,11 @@ namespace DMModuleScienceAnimateGeneric
 			return IsRerunnable();
 		}
 
+		void IScienceDataContainer.ReturnData(ScienceData data)
+		{
+			ReturnData(data);
+		}
+
 		void IScienceDataContainer.ReviewData()
 		{
 			ReviewData();
@@ -783,6 +938,26 @@ namespace DMModuleScienceAnimateGeneric
 		void IScienceDataContainer.DumpData(ScienceData data)
 		{
 			DumpData(data);
+		}
+
+		new private void ReturnData(ScienceData data)
+		{
+			if (data == null)
+				return;
+
+			storedScienceReportList.Add(data);
+
+			experimentsReturned--;
+
+			if (experimentsReturned < 0)
+				experimentsReturned = 0;
+
+			Inoperable = false;
+
+			if (experimentsLimit <= 1)
+				Deployed = true;
+			else
+				Deployed = experimentsNumber >= experimentsLimit;
 		}
 
 		new private void DumpData(ScienceData data)
