@@ -107,6 +107,10 @@ namespace DMModuleScienceAnimateGeneric
 		[KSPField]
 		public string requiredModules = "";
 		[KSPField]
+		public string requiredPartsMessage = "";
+		[KSPField]
+		public string requiredModulesMessage = "";
+		[KSPField]
 		public bool excludeAtmosphere = false;
 		[KSPField]
 		public string excludeAtmosphereMessage = "This experiment can't be conducted within an atmosphere";
@@ -175,9 +179,9 @@ namespace DMModuleScienceAnimateGeneric
 			}
 
 			base.OnStart(state);
-			if (part.FindModelAnimators(animationName).Length > 0 && !string.IsNullOrEmpty(animationName))
+			if (!string.IsNullOrEmpty(animationName) && part.FindModelAnimators(animationName).Length > 0)
 				anim = part.FindModelAnimators(animationName).FirstOrDefault();
-			if (part.FindModelAnimators(sampleAnim).Length > 0 && !string.IsNullOrEmpty(sampleAnim))
+			if (!string.IsNullOrEmpty(sampleAnim) && part.FindModelAnimators(sampleAnim).Length > 0)
 			{
 				anim2 = part.FindModelAnimators(sampleAnim).FirstOrDefault();
 				secondaryAnimator(sampleAnim, 0f, experimentsNumber * (1f / experimentsLimit), 1f);
@@ -307,14 +311,34 @@ namespace DMModuleScienceAnimateGeneric
 			{
 				if (anim != null)
 					waitForAnimationTime = anim[animationName].length / animSpeed;
+				else
+					waitForAnimationTime = 1;
 			}
-			//if (FlightGlobals.Bodies[16].bodyName != "Eeloo")
-			//	FlightGlobals.Bodies[16].bodyName = bodyNameFixed;
 			if (labDataBoost == 0)
 				labDataBoost = xmitDataScalar / 2;
 
 			requiredPartList = parsePartStringList(requiredParts);
 			requiredModuleList = parseModuleStringList(requiredModules);
+
+			if (string.IsNullOrEmpty(requiredPartsMessage) && requiredPartList.Count > 0)
+			{
+				requiredPartsMessage = "The following parts are required to be on the vessel";
+
+				foreach (string s in requiredPartList)
+				{
+					requiredPartsMessage += ": " + s;
+				}
+			}
+
+			if (string.IsNullOrEmpty(requiredModulesMessage) && requiredModuleList.Count > 0)
+			{
+				requiredModulesMessage = "The following part modules are required to be on the vessel";
+
+				foreach (string s in requiredModuleList)
+				{
+					requiredModulesMessage += ": " + s;
+				}
+			}
 		}
 
 		private List<string> parsePartStringList(string source)
@@ -400,6 +424,8 @@ namespace DMModuleScienceAnimateGeneric
 			Events["DeployExperiment"].guiActiveUnfocused = !Inoperable && externalDeploy;
 			Events["ReviewDataEvent"].active = storedScienceReportList.Count > 0;
 			Events["ReviewInitialData"].active = initialDataList.Count > 0;
+			Events["DeployExperimentExternal"].guiActiveUnfocused = false;
+			Events["CleanUpExperimentExternal"].active = Inoperable;
 		}
 
 		#endregion
@@ -583,6 +609,16 @@ namespace DMModuleScienceAnimateGeneric
 		//Can't use base.DeployExperiment here, we need to create our own science data and control the experiment results page
 		new public void DeployExperiment()
 		{
+			gatherScienceData();
+		}
+
+		new public void DeployAction(KSPActionParam param)
+		{
+			DeployExperiment();
+		}
+
+		public void gatherScienceData(bool silent = false)
+		{
 			if (canConduct())
 			{
 				if (experimentAnimation && anim != null)
@@ -598,16 +634,16 @@ namespace DMModuleScienceAnimateGeneric
 							if (experimentWaitForAnimation)
 							{
 								if (resourceExpCost > 0) resourceOn = true;
-								StartCoroutine("WaitForAnimation", waitForAnimationTime);
+								StartCoroutine("WaitForAnimation", silent);
 							}
-							else runExperiment();
+							else runExperiment(silent);
 						}
 						else if (resourceExpCost > 0)
 						{
 							resourceOn = true;
-							StartCoroutine("WaitForAnimation", waitForAnimationTime);
+							StartCoroutine("WaitForAnimation", silent);
 						}
-						else runExperiment();
+						else runExperiment(silent);
 					}
 				}
 				else if (resourceExpCost > 0)
@@ -615,28 +651,23 @@ namespace DMModuleScienceAnimateGeneric
 					if (!string.IsNullOrEmpty(deployingMessage))
 						ScreenMessages.PostScreenMessage(deployingMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
 					resourceOn = true;
-					StartCoroutine("WaitForAnimation", waitForAnimationTime);
+					StartCoroutine("WaitForAnimation", silent);
 				}
-				else runExperiment();
+				else runExperiment(silent);
 			}
 			else
 				ScreenMessages.PostScreenMessage(failMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
 		}
 
-		new public void DeployAction(KSPActionParam param)
-		{
-			DeployExperiment();
-		}
-
 		//In case we need to wait for an animation to finish before running the experiment
-		public IEnumerator WaitForAnimation(float waitTime)
+		public IEnumerator WaitForAnimation(bool s)
 		{
-			yield return new WaitForSeconds(waitTime);
+			yield return new WaitForSeconds(waitForAnimationTime);
 			resourceOn = false;
-			runExperiment();
+			runExperiment(s);
 		}
 
-		public void runExperiment()
+		public void runExperiment(bool silent)
 		{
 			ScienceData data = makeScience();
 			if (data == null)
@@ -649,14 +680,18 @@ namespace DMModuleScienceAnimateGeneric
 					dataIndex = 0;
 					storedScienceReportList.Add(data);
 					Deployed = true;
-					ReviewData();
+					if (!silent)
+						ReviewData();
 				}
 				else
 				{
 					initialDataList.Add(data);
 					if (experimentsReturned >= experimentsLimit - 1)
 						Deployed = true;
-					initialResultsPage();
+					if (silent)
+						onKeepInitialData(data);
+					else
+						initialResultsPage();
 				}
 				if (keepDeployedMode == 1) retractEvent();
 			}
@@ -793,7 +828,7 @@ namespace DMModuleScienceAnimateGeneric
 					if (!VesselUtilities.VesselHasPartName(partName, vessel))
 					{
 						var p = PartLoader.getPartInfoByName(partName.Replace('_', '.'));
-						failMessage = "A " + p == null ? partName : p.title + " is required on the vessel for this experiment";
+						failMessage = requiredPartsMessage;
 						return false;
 					}
 				}
@@ -809,7 +844,7 @@ namespace DMModuleScienceAnimateGeneric
 
 					if (!VesselUtilities.VesselHasModuleName(moduleName, vessel))
 					{
-						failMessage = "A " + moduleName + " module is required on the vessel for this experiment";
+						failMessage = requiredModulesMessage;
 						return false;
 					}
 				}
