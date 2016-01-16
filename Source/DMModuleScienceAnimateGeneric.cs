@@ -554,8 +554,7 @@ namespace DMModuleScienceAnimateGeneric
 			if (storedScienceReportList.Count > 0)
 			{
 				if (EVACont.First().StoreData(new List<IScienceDataContainer> { this }, false))
-					foreach (ScienceData data in storedScienceReportList)
-						DumpData(data);
+					DumpAllData(storedScienceReportList);
 			}
 		}
 
@@ -566,10 +565,9 @@ namespace DMModuleScienceAnimateGeneric
 				if (!string.IsNullOrEmpty(sampleAnim))
 					secondaryAnimator(sampleAnim, -1f * animSpeed, experimentsNumber * (1f / experimentsLimit), experimentsNumber * (anim2[sampleAnim].length / experimentsLimit));
 				foreach (ScienceData data in storedScienceReportList)
-				{
-					storedScienceReportList.Remove(data);
 					experimentsNumber--;
-				}
+				storedScienceReportList.Clear();
+
 				if (experimentsNumber < 0)
 					experimentsNumber = 0;
 				if (keepDeployedMode == 0) retractEvent();
@@ -827,7 +825,6 @@ namespace DMModuleScienceAnimateGeneric
 
 					if (!VesselUtilities.VesselHasPartName(partName, vessel))
 					{
-						var p = PartLoader.getPartInfoByName(partName.Replace('_', '.'));
 						failMessage = requiredPartsMessage;
 						return false;
 					}
@@ -849,16 +846,15 @@ namespace DMModuleScienceAnimateGeneric
 					}
 				}
 			}
-			else if (FlightGlobals.ActiveVessel.isEVA)
+
+			if (FlightGlobals.ActiveVessel.isEVA)
 			{
 				if (!ScienceUtil.RequiredUsageExternalAvailable(part.vessel, FlightGlobals.ActiveVessel, (ExperimentUsageReqs)usageReqMaskExternal, scienceExp, ref usageReqMessage))
 				{
-					failMessage = "";
+					failMessage = usageReqMessage;
 					return false;
 				}
 			}
-			else
-				return true;
 
 			return true;
 		}
@@ -993,6 +989,15 @@ namespace DMModuleScienceAnimateGeneric
 				Deployed = true;
 			else
 				Deployed = experimentsNumber >= experimentsLimit;
+		}
+
+		private void DumpAllData(List<ScienceData> data)
+		{
+			foreach (ScienceData d in data)
+				experimentsReturned++;
+			Inoperable = !IsRerunnable();
+			Deployed = Inoperable;
+			data.Clear();
 		}
 
 		new private void DumpData(ScienceData data)
