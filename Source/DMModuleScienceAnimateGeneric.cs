@@ -221,8 +221,10 @@ namespace DMModuleScienceAnimateGeneric
 			}
 		}
 
-		private void Update()
+		new public void Update()
 		{
+			base.Update();
+
 			if (Inoperable)
 				lastInOperableState = true;
 			else if (lastInOperableState)
@@ -232,6 +234,8 @@ namespace DMModuleScienceAnimateGeneric
 					secondaryAnimator(sampleAnim, -1f * animSpeed, experimentsNumber * (1f / experimentsLimit), anim2[sampleAnim].length);
 				experimentsNumber = 0;
 				experimentsReturned = 0;
+				Inoperable = false;
+				Deployed = false;
 				if (keepDeployedMode == 0) retractEvent();
 			}
 			eventsCheck();
@@ -534,14 +538,29 @@ namespace DMModuleScienceAnimateGeneric
 			if (storedScienceReportList.Count > 0)
 			{
 				if (experimentsLimit > 1)
-					ResetExperimentExternal();
+				{
+					if (!string.IsNullOrEmpty(sampleAnim))
+						secondaryAnimator(sampleAnim, -1f * animSpeed, experimentsNumber * (1f / experimentsLimit), experimentsNumber * (anim2[sampleAnim].length / experimentsLimit));
+					foreach (ScienceData data in storedScienceReportList)
+						experimentsNumber--;
+					storedScienceReportList.Clear();
+
+					if (experimentsNumber < 0)
+						experimentsNumber = 0;
+					if (keepDeployedMode == 0)
+						retractEvent();
+				}
 				else
 				{
-					if (keepDeployedMode == 0) retractEvent();
+					if (keepDeployedMode == 0)
+						retractEvent();
 					storedScienceReportList.Clear();
 				}
-				Deployed = false;
 			}
+
+			Deployed = false;
+			Inoperable = false;
+			lastInOperableState = false;
 		}
 
 		new public void ResetAction(KSPActionParam param)
@@ -552,6 +571,10 @@ namespace DMModuleScienceAnimateGeneric
 		new public void CollectDataExternalEvent()
 		{
 			List<ModuleScienceContainer> EVACont = FlightGlobals.ActiveVessel.FindPartModulesImplementing<ModuleScienceContainer>();
+
+			if (EVACont.Count <= 0)
+				return;
+
 			if (storedScienceReportList.Count > 0)
 			{
 				if (EVACont.First().StoreData(new List<IScienceDataContainer> { this }, false))
@@ -561,19 +584,7 @@ namespace DMModuleScienceAnimateGeneric
 
 		new public void ResetExperimentExternal()
 		{
-			if (storedScienceReportList.Count > 0)
-			{
-				if (!string.IsNullOrEmpty(sampleAnim))
-					secondaryAnimator(sampleAnim, -1f * animSpeed, experimentsNumber * (1f / experimentsLimit), experimentsNumber * (anim2[sampleAnim].length / experimentsLimit));
-				foreach (ScienceData data in storedScienceReportList)
-					experimentsNumber--;
-				storedScienceReportList.Clear();
-
-				if (experimentsNumber < 0)
-					experimentsNumber = 0;
-				if (keepDeployedMode == 0) retractEvent();
-				Deployed = false;
-			}
+			ResetExperiment();
 		}
 
 		new public void DeployExperimentExternal()
@@ -583,22 +594,25 @@ namespace DMModuleScienceAnimateGeneric
 
 		new public void CleanUpExperimentExternal()
 		{
-			if (FlightGlobals.ActiveVessel.isEVA)
+			if (!FlightGlobals.ActiveVessel.isEVA)
+				return;
+
+			if (FlightGlobals.ActiveVessel.parts[0].protoModuleCrew[0].experienceTrait.TypeName != "Scientist")
 			{
-				if (FlightGlobals.ActiveVessel.parts[0].protoModuleCrew[0].experienceTrait.TypeName == "Scientist")
-				{
-					if (FlightGlobals.ActiveVessel.parts[0].protoModuleCrew[0].experienceLevel >= resetLevel)
-					{
-						ResetExperiment();
-						Inoperable = false;
-						ScreenMessages.PostScreenMessage(string.Format("[0]: Media Restored. Module is operational again.", scienceExp.experimentTitle), 6f, ScreenMessageStyle.UPPER_LEFT);
-					}
-					else
-						ScreenMessages.PostScreenMessage(string.Format("[0]: A level " + resetLevel + " scientist is required to reset this experiment.", scienceExp.experimentTitle), 6f, ScreenMessageStyle.UPPER_LEFT);
-				}
-				else
-					ScreenMessages.PostScreenMessage(string.Format("[0]: A scientist is needed to reset this experiment.", scienceExp.experimentTitle), 6f, ScreenMessageStyle.UPPER_LEFT);
+				ScreenMessages.PostScreenMessage(string.Format("<b><color=orange>[{0}]: A scientist is needed to reset this experiment.</color></b>", part.partInfo.title), 6f, ScreenMessageStyle.UPPER_LEFT);
+				return;
 			}
+
+			if (FlightGlobals.ActiveVessel.parts[0].protoModuleCrew[0].experienceLevel < resetLevel)
+			{
+				ScreenMessages.PostScreenMessage(string.Format("<b><color=orange>[{0}]: A level {1} scientist is required to reset this experiment.</color></b>", part.partInfo.title, resetLevel), 6f, ScreenMessageStyle.UPPER_LEFT);
+				return;
+			}
+
+			ResetExperiment();
+
+			ScreenMessages.PostScreenMessage(string.Format("<b><color=#99ff00ff>[{0}]: Media Restored. Module is operational again.</color></b>", part.partInfo.title), 6f, ScreenMessageStyle.UPPER_LEFT);
+			
 		}
 
 		#endregion
@@ -726,27 +740,10 @@ namespace DMModuleScienceAnimateGeneric
 				mainBody.bodyName = bodyNameFixed;
 				asteroid = false;
 			}
-			else
-			{
-				sub.subjectValue = fixSubjectValue(vesselSituation, mainBody, sub.subjectValue);
-				sub.scienceCap = scienceExp.scienceCap * sub.subjectValue;
-			}
 
 			if (sub != null)
-				data = new ScienceData(scienceExp.baseValue * sub.dataScale, xmitDataScalar, 0f, sub.id, sub.title, false, part.flightID);
+				data = new ScienceData(scienceExp.baseValue * sub.dataScale, xmitDataScalar, vessel.VesselValues.ScienceReturn.value, sub.id, sub.title, false, part.flightID);
 			return data;
-		}
-
-		private float fixSubjectValue(ExperimentSituations s, CelestialBody b, float f)
-		{
-			float subV = f;
-			if (s == ExperimentSituations.SrfLanded) subV = b.scienceValues.LandedDataValue;
-			else if (s == ExperimentSituations.SrfSplashed) subV = b.scienceValues.SplashedDataValue;
-			else if (s == ExperimentSituations.FlyingLow) subV = b.scienceValues.FlyingLowDataValue;
-			else if (s == ExperimentSituations.FlyingHigh) subV = b.scienceValues.FlyingHighDataValue;
-			else if (s == ExperimentSituations.InSpaceLow) subV = b.scienceValues.InSpaceLowDataValue;
-			else if (s == ExperimentSituations.InSpaceHigh) subV = b.scienceValues.InSpaceHighDataValue;
-			return subV;
 		}
 
 		public string getBiome(ExperimentSituations s)
@@ -1104,29 +1101,21 @@ namespace DMModuleScienceAnimateGeneric
 				tranList.OrderBy(ScienceUtil.GetTransmitterScore).First().TransmitData(new List<ScienceData> { data });
 				DumpData(data);
 			}
-			else ScreenMessages.PostScreenMessage("No transmitters available on this vessel.", 4f, ScreenMessageStyle.UPPER_LEFT);
+			else
+				ScreenMessages.PostScreenMessage("No Comms Devices on this vessel. Cannot Transmit Data.", 3f, ScreenMessageStyle.UPPER_CENTER);
 		}
 
 		private void onSendToLab(ScienceData data)
 		{
-			List<ModuleScienceLab> labList = vessel.FindPartModulesImplementing<ModuleScienceLab>();
-			if (checkLabOps() && storedScienceReportList.Count > 0)
-				labList.OrderBy(ScienceUtil.GetLabScore).First().StartCoroutine(labList.First().ProcessData(data, new Callback<ScienceData>(onComplete)));
-			else ScreenMessages.PostScreenMessage("No operational lab modules on this vessel. Cannot analyze data.", 4f, ScreenMessageStyle.UPPER_CENTER);
-		}
+			ScienceLabSearch labSearch = new ScienceLabSearch(vessel, data);
 
-		private void onComplete(ScienceData data)
-		{
-			ReviewData();
-		}
-
-		private bool checkLabOps()
-		{
-			List<ModuleScienceLab> labList = vessel.FindPartModulesImplementing<ModuleScienceLab>();
-			for (int i = 0; i < labList.Count; i++)
-				if (labList[i].IsOperational())
-					return true;
-			return false;
+			if (labSearch.NextLabForDataFound)
+			{
+				StartCoroutine(labSearch.NextLabForData.ProcessData(data, null));
+				DumpData(data);
+			}
+			else
+				labSearch.PostErrorToScreen();
 		}
 
 		private void onDiscardInitialData(ScienceData data)
@@ -1168,21 +1157,20 @@ namespace DMModuleScienceAnimateGeneric
 				experimentsNumber++;
 			}
 			else
-				ScreenMessages.PostScreenMessage("No transmitters available on this vessel.", 4f, ScreenMessageStyle.UPPER_LEFT);
+				ScreenMessages.PostScreenMessage("No Comms Devices on this vessel. Cannot Transmit Data.", 3f, ScreenMessageStyle.UPPER_CENTER);
 		}
 
 		private void onSendInitialToLab(ScienceData data)
 		{
-			List<ModuleScienceLab> labList = vessel.FindPartModulesImplementing<ModuleScienceLab>();
-			if (checkLabOps() && initialDataList.Count > 0)
-				labList.OrderBy(ScienceUtil.GetLabScore).First().StartCoroutine(labList.First().ProcessData(data, new Callback<ScienceData>(onInitialComplete)));
-			else
-				ScreenMessages.PostScreenMessage("No operational lab modules on this vessel. Cannot analyze data.", 4f, ScreenMessageStyle.UPPER_CENTER);
-		}
+			ScienceLabSearch labSearch = new ScienceLabSearch(vessel, data);
 
-		private void onInitialComplete(ScienceData data)
-		{
-			initialResultsPage();
+			if (labSearch.NextLabForDataFound)
+			{
+				StartCoroutine(labSearch.NextLabForData.ProcessData(data, null));
+				DumpData(data);
+			}
+			else
+				labSearch.PostErrorToScreen();
 		}
 
 		#endregion
