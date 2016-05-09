@@ -2,7 +2,7 @@
 /* DMagic Orbital Science - Module Science Animate Generic
  * Generic module for animated science experiments.
  *
- * Copyright (c) 2014, David Grandy
+ * Copyright (c) 2014-2016, David Grandy
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -118,7 +118,7 @@ namespace DMModuleScienceAnimateGeneric
 
 		private Animation anim;
 		private Animation anim2;
-		private ScienceExperiment scienceExp;
+		internal ScienceExperiment scienceExp;
 		private bool resourceOn = false;
 		private int dataIndex = 0;
 		private bool lastInOperableState = false;
@@ -936,12 +936,12 @@ namespace DMModuleScienceAnimateGeneric
 
 		ScienceData[] IScienceDataContainer.GetData()
 		{
-			return storedScienceReportList.ToArray();
+			return GetData();
 		}
 
 		int IScienceDataContainer.GetScienceCount()
 		{
-			return storedScienceReportList.Count;
+			return GetScienceCount();
 		}
 
 		bool IScienceDataContainer.IsRerunnable()
@@ -967,6 +967,16 @@ namespace DMModuleScienceAnimateGeneric
 		void IScienceDataContainer.DumpData(ScienceData data)
 		{
 			DumpData(data);
+		}
+
+		new public ScienceData[] GetData()
+		{
+			return storedScienceReportList.ToArray();
+		}
+
+		new public int GetScienceCount()
+		{
+			return storedScienceReportList.Count;
 		}
 
 		new private void ReturnData(ScienceData data)
