@@ -2,7 +2,7 @@
 /* DMagic Orbital Science - Planetary Index
  * Class and enum to limit experiments to certain planets
  *
- * Copyright (c) 2014, David Grandy
+ * Copyright (c) 2014-2016, David Grandy
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, 
