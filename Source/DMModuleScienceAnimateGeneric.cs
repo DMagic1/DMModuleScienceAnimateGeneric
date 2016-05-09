@@ -936,12 +936,12 @@ namespace DMModuleScienceAnimateGeneric
 
 		ScienceData[] IScienceDataContainer.GetData()
 		{
-			return storedScienceReportList.ToArray();
+			return GetData();
 		}
 
 		int IScienceDataContainer.GetScienceCount()
 		{
-			return storedScienceReportList.Count;
+			return GetScienceCount();
 		}
 
 		bool IScienceDataContainer.IsRerunnable()
@@ -967,6 +967,16 @@ namespace DMModuleScienceAnimateGeneric
 		void IScienceDataContainer.DumpData(ScienceData data)
 		{
 			DumpData(data);
+		}
+
+		new public ScienceData[] GetData()
+		{
+			return storedScienceReportList.ToArray();
+		}
+
+		new public int GetScienceCount()
+		{
+			return storedScienceReportList.Count;
 		}
 
 		new private void ReturnData(ScienceData data)
