@@ -2,7 +2,7 @@
 /* DMagic Orbital Science - Module Science Animate Generic
  * Generic module for animated science experiments.
  *
- * Copyright (c) 2014, David Grandy
+ * Copyright (c) 2014-2016, David Grandy
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, 
@@ -118,7 +118,7 @@ namespace DMModuleScienceAnimateGeneric
 
 		private Animation anim;
 		private Animation anim2;
-		private ScienceExperiment scienceExp;
+		internal ScienceExperiment scienceExp;
 		private bool resourceOn = false;
 		private int dataIndex = 0;
 		private bool lastInOperableState = false;
