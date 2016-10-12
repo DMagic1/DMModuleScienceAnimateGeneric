@@ -98,8 +98,6 @@ namespace DMModuleScienceAnimateGeneric
 		[KSPField(isPersistant = true)]
 		public int experimentsNumber = 0;
 		[KSPField]
-		public float labDataBoost = 0;
-		[KSPField]
 		public bool externalDeploy = false;
 		[KSPField]
 		public int resetLevel = 0;
@@ -245,10 +243,11 @@ namespace DMModuleScienceAnimateGeneric
 		{
 			if (resourceOn)
 			{
-				if (PartResourceLibrary.Instance.GetDefinition(resourceExperiment) != null)
+				PartResourceDefinition resource = PartResourceLibrary.Instance.GetDefinition(resourceExperiment);
+				if (resource != null)
 				{
 					float cost = resourceExpCost * TimeWarp.fixedDeltaTime;
-					if (part.RequestResource(resourceExperiment, cost) < cost)
+					if (part.RequestResource(resource.id, cost) < cost)
 					{
 						StopCoroutine("WaitForAnimation");
 						resourceOn = false;
@@ -319,8 +318,6 @@ namespace DMModuleScienceAnimateGeneric
 				else
 					waitForAnimationTime = 1;
 			}
-			if (labDataBoost == 0)
-				labDataBoost = xmitDataScalar / 2;
 
 			requiredPartList = parsePartStringList(requiredParts);
 			requiredModuleList = parseModuleStringList(requiredModules);
@@ -742,7 +739,7 @@ namespace DMModuleScienceAnimateGeneric
 			}
 
 			if (sub != null)
-				data = new ScienceData(scienceExp.baseValue * sub.dataScale, xmitDataScalar, vessel.VesselValues.ScienceReturn.value, sub.id, sub.title, false, part.flightID);
+				data = new ScienceData(scienceExp.baseValue * sub.dataScale, xmitDataScalar, 0, sub.id, sub.title, false, part.flightID);
 			return data;
 		}
 
@@ -936,12 +933,12 @@ namespace DMModuleScienceAnimateGeneric
 
 		ScienceData[] IScienceDataContainer.GetData()
 		{
-			return GetData();
+			return storedScienceReportList.ToArray();
 		}
 
 		int IScienceDataContainer.GetScienceCount()
 		{
-			return GetScienceCount();
+			return storedScienceReportList.Count;
 		}
 
 		bool IScienceDataContainer.IsRerunnable()
@@ -967,16 +964,6 @@ namespace DMModuleScienceAnimateGeneric
 		void IScienceDataContainer.DumpData(ScienceData data)
 		{
 			DumpData(data);
-		}
-
-		new public ScienceData[] GetData()
-		{
-			return storedScienceReportList.ToArray();
-		}
-
-		new public int GetScienceCount()
-		{
-			return storedScienceReportList.Count;
 		}
 
 		new private void ReturnData(ScienceData data)
@@ -1047,7 +1034,7 @@ namespace DMModuleScienceAnimateGeneric
 			if (storedScienceReportList.Count > 0)
 			{
 				ScienceData data = storedScienceReportList[dataIndex];
-				ExperimentResultDialogPage page = new ExperimentResultDialogPage(part, data, data.transmitValue, labDataBoost, (experimentsReturned >= (experimentsLimit - 1)) && !rerunnable, transmitWarningText, true, new ScienceLabSearch(vessel, data), new Callback<ScienceData>(onDiscardData), new Callback<ScienceData>(onKeepData), new Callback<ScienceData>(onTransmitData), new Callback<ScienceData>(onSendToLab));
+				ExperimentResultDialogPage page = new ExperimentResultDialogPage(part, data, data.baseTransmitValue, data.transmitBonus, (experimentsReturned >= (experimentsLimit - 1)) && !rerunnable, transmitWarningText, true, new ScienceLabSearch(vessel, data), new Callback<ScienceData>(onDiscardData), new Callback<ScienceData>(onKeepData), new Callback<ScienceData>(onTransmitData), new Callback<ScienceData>(onSendToLab));
 				ExperimentsResultDialog.DisplayResult(page);
 			}
 		}
@@ -1079,7 +1066,7 @@ namespace DMModuleScienceAnimateGeneric
 			if (initialDataList.Count > 0)
 			{
 				ScienceData data = initialDataList[0];
-				ExperimentResultDialogPage page = new ExperimentResultDialogPage(part, data, data.transmitValue, labDataBoost, (experimentsReturned >= (experimentsLimit - 1)) && !rerunnable, transmitWarningText, true, new ScienceLabSearch(vessel, data), new Callback<ScienceData>(onDiscardInitialData), new Callback<ScienceData>(onKeepInitialData), new Callback<ScienceData>(onTransmitInitialData), new Callback<ScienceData>(onSendInitialToLab));
+				ExperimentResultDialogPage page = new ExperimentResultDialogPage(part, data, data.baseTransmitValue, data.transmitBonus, (experimentsReturned >= (experimentsLimit - 1)) && !rerunnable, transmitWarningText, true, new ScienceLabSearch(vessel, data), new Callback<ScienceData>(onDiscardInitialData), new Callback<ScienceData>(onKeepInitialData), new Callback<ScienceData>(onTransmitInitialData), new Callback<ScienceData>(onSendInitialToLab));
 				ExperimentsResultDialog.DisplayResult(page);
 			}
 		}
@@ -1105,10 +1092,11 @@ namespace DMModuleScienceAnimateGeneric
 
 		private void onTransmitData(ScienceData data)
 		{
-			List<IScienceDataTransmitter> tranList = vessel.FindPartModulesImplementing<IScienceDataTransmitter>();
-			if (tranList.Count > 0 && storedScienceReportList.Count > 0)
+			IScienceDataTransmitter bestTransmitter = ScienceUtil.GetBestTransmitter(vessel);
+
+			if (bestTransmitter != null)
 			{
-				tranList.OrderBy(ScienceUtil.GetTransmitterScore).First().TransmitData(new List<ScienceData> { data });
+				bestTransmitter.TransmitData(new List<ScienceData> { data });
 				DumpData(data);
 			}
 			else
@@ -1157,12 +1145,13 @@ namespace DMModuleScienceAnimateGeneric
 
 		private void onTransmitInitialData(ScienceData data)
 		{
-			List<IScienceDataTransmitter> tranList = vessel.FindPartModulesImplementing<IScienceDataTransmitter>();
-			if (tranList.Count > 0 && initialDataList.Count > 0)
+			IScienceDataTransmitter bestTransmitter = ScienceUtil.GetBestTransmitter(vessel);
+
+			if (bestTransmitter != null)
 			{
 				if (!string.IsNullOrEmpty(sampleAnim))
 					secondaryAnimator(sampleAnim, animSpeed, experimentsNumber * (1f / experimentsLimit), anim2[sampleAnim].length / experimentsLimit);
-				tranList.OrderBy(ScienceUtil.GetTransmitterScore).First().TransmitData(new List<ScienceData> { data });
+				bestTransmitter.TransmitData(new List<ScienceData> { data });
 				DumpInitialData(data);
 				experimentsNumber++;
 			}
