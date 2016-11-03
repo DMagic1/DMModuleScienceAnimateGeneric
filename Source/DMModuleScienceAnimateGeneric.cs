@@ -121,6 +121,7 @@ namespace DMModuleScienceAnimateGeneric
 		private int dataIndex = 0;
 		private bool lastInOperableState = false;
 		private string failMessage = "";
+		private ExperimentsResultDialog resultsDialog;
 
 		private List<string> requiredPartList = new List<string>();
 		private List<string> requiredModuleList = new List<string>();
@@ -160,6 +161,13 @@ namespace DMModuleScienceAnimateGeneric
 
 		#region PartModule
 
+		public override void OnAwake()
+		{
+			GameEvents.onGamePause.Add(onPause);
+			GameEvents.onGameUnpause.Add(onUnPause);
+			GameEvents.onVesselStandardModification.Add(OnVesselModified);
+		}
+
 		public override void OnStart(StartState state)
 		{
 			if (!partModulesLoaded)
@@ -195,6 +203,25 @@ namespace DMModuleScienceAnimateGeneric
 						primaryAnimator(1f, 1f, WrapMode.Default, animationName, anim);
 				}
 			}
+		}
+
+		new protected virtual void OnDestroy()
+		{
+			GameEvents.onGamePause.Remove(onPause);
+			GameEvents.onGameUnpause.Remove(onUnPause);
+			GameEvents.onVesselStandardModification.Remove(OnVesselModified);
+		}
+
+		private void onPause()
+		{
+			if (resultsDialog != null)
+				resultsDialog.gameObject.SetActive(false);
+		}
+
+		private void onUnPause()
+		{
+			if (resultsDialog != null)
+				resultsDialog.gameObject.SetActive(true);
 		}
 
 		public override void OnSave(ConfigNode node)
@@ -261,13 +288,17 @@ namespace DMModuleScienceAnimateGeneric
 		public override string GetInfo()
 		{
 			string info = base.GetInfo();
-			if (resourceExpCost > 0)
-				info += ".\nRequires:\n-" + resourceExperiment + ": " + resourceExpCost.ToString() + "/s for " + waitForAnimationTime.ToString() + "s\n";
+
+			info += string.Format("\nTransmission: {0:P0}\n", xmitDataScalar);
 			if (experimentsLimit > 1)
-				info += ".\nMax Samples: " + experimentsLimit + "\n";
+				info += "Max Samples: " + experimentsLimit + "\n";
+			if (!rerunnable)
+				info += string.Format("Scientist Level For Reset: {0}\n", resetLevel);
+			if (resourceExpCost > 0)
+				info += "Requires:\n-" + resourceExperiment + ": " + resourceExpCost.ToString() + "/s for " + waitForAnimationTime.ToString() + "s\n";
 			if (requiredPartList.Count > 0)
 			{
-				info += ".\nRequired Parts: ";
+				info += "Required Parts: ";
 				for (int i = 0; i < requiredPartList.Count; i++)
 				{
 					info += requiredPartList[i] + "\n";
@@ -275,7 +306,7 @@ namespace DMModuleScienceAnimateGeneric
 			}
 			if (requiredModuleList.Count > 0)
 			{
-				info += ".\nRequired Modules: ";
+				info += "Required Modules: ";
 				for (int i = 0; i < requiredModuleList.Count; i++)
 				{
 					info += requiredModuleList[i] + "\n";
@@ -283,10 +314,8 @@ namespace DMModuleScienceAnimateGeneric
 			}
 			if (excludeAtmosphere)
 			{
-				info += ".\nExperiment Can't Be Run In An Atmosphere";
+				info += "Experiment Can't Be Run In An Atmosphere\n";
 			}
-			if (!rerunnable)
-				info += string.Format("Scientist Level For Reset: {0}", resetLevel);
 			return info;
 		}
 
@@ -428,6 +457,7 @@ namespace DMModuleScienceAnimateGeneric
 			Events["ReviewInitialData"].active = initialDataList.Count > 0;
 			Events["DeployExperimentExternal"].guiActiveUnfocused = false;
 			Events["CleanUpExperimentExternal"].active = Inoperable;
+			Events["TransferDataEvent"].active = hasContainer && dataIsCollectable && storedScienceReportList.Count > 0;
 		}
 
 		#endregion
@@ -610,6 +640,77 @@ namespace DMModuleScienceAnimateGeneric
 
 			ScreenMessages.PostScreenMessage(string.Format("<b><color=#99ff00ff>[{0}]: Media Restored. Module is operational again.</color></b>", part.partInfo.title), 6f, ScreenMessageStyle.UPPER_LEFT);
 			
+		}
+
+		new public void TransferDataEvent()
+		{
+			if (PartItemTransfer.Instance != null)
+			{
+				ScreenMessages.PostScreenMessage("<b><color=orange>A transfer is already in progress.</color></b>", 3f, ScreenMessageStyle.UPPER_CENTER);
+				return;
+			}
+
+			ExperimentTransfer.Create(part, this, new Callback<PartItemTransfer.DismissAction, Part>(transferData));
+		}
+
+		private void transferData(PartItemTransfer.DismissAction dismiss, Part p)
+		{
+			if (dismiss != PartItemTransfer.DismissAction.ItemMoved)
+				return;
+
+			if (p == null)
+				return;
+
+			if (storedScienceReportList.Count <= 0)
+			{
+				ScreenMessages.PostScreenMessage(string.Format("[{0}]: has no data to transfer.", part.partInfo.title), 6, ScreenMessageStyle.UPPER_CENTER);
+				return;
+			}
+
+			ModuleScienceContainer container = p.FindModuleImplementing<ModuleScienceContainer>();
+
+			if (container == null)
+			{
+				ScreenMessages.PostScreenMessage(string.Format("<color=orange>[{0}]: {1} has no data container, canceling transfer.<color>", part.partInfo.title, p.partInfo.title), 6, ScreenMessageStyle.UPPER_CENTER);
+				return;
+			}
+
+			if ((experimentsReturned >= (experimentsLimit - 1)) && !rerunnable)
+			{
+				List<DialogGUIBase> dialog = new List<DialogGUIBase>();
+				dialog.Add(new DialogGUIButton<ModuleScienceContainer>("Remove Data", new Callback<ModuleScienceContainer>(onTransferData), container));
+				dialog.Add(new DialogGUIButton("Cancel", null, true));
+
+				PopupDialog.SpawnPopupDialog(
+					new Vector2(0.5f, 0.5f),
+					new Vector2(0.5f, 0.5f),
+					new MultiOptionDialog(
+						collectWarningText,
+						part.partInfo.title + "Warning!",
+						UISkinManager.defaultSkin,
+						dialog.ToArray()
+						),
+					false,
+					UISkinManager.defaultSkin,
+					true,
+					""
+					);
+			}
+			else
+				onTransferData(container);
+		}
+
+		private void onTransferData(ModuleScienceContainer target)
+		{
+			if (target == null)
+				return;
+
+			int i = storedScienceReportList.Count;
+
+			if (target.StoreData(new List<IScienceDataContainer> { this }, false))
+				ScreenMessages.PostScreenMessage(string.Format("[{0}]: {1} Data stored.", target.part.partInfo.title, i), 6, ScreenMessageStyle.UPPER_LEFT);
+			else
+				ScreenMessages.PostScreenMessage(string.Format("<color=orange>[{0}]: Not all data was stored.</color>", target.part.partInfo.title), 6, ScreenMessageStyle.UPPER_LEFT);
 		}
 
 		#endregion
@@ -933,12 +1034,12 @@ namespace DMModuleScienceAnimateGeneric
 
 		ScienceData[] IScienceDataContainer.GetData()
 		{
-			return storedScienceReportList.ToArray();
+			return GetData();
 		}
 
 		int IScienceDataContainer.GetScienceCount()
 		{
-			return storedScienceReportList.Count;
+			return GetScienceCount();
 		}
 
 		bool IScienceDataContainer.IsRerunnable()
@@ -964,6 +1065,21 @@ namespace DMModuleScienceAnimateGeneric
 		void IScienceDataContainer.DumpData(ScienceData data)
 		{
 			DumpData(data);
+		}
+
+		new public ScienceData[] GetData()
+		{
+			List<ScienceData> DataList = new List<ScienceData>();
+
+			DataList.AddRange(storedScienceReportList);
+			DataList.AddRange(initialDataList);
+
+			return DataList.ToArray();
+		}
+
+		new public int GetScienceCount()
+		{
+			return storedScienceReportList.Count + initialDataList.Count;
 		}
 
 		new private void ReturnData(ScienceData data)
@@ -997,12 +1113,21 @@ namespace DMModuleScienceAnimateGeneric
 
 		new private void DumpData(ScienceData data)
 		{
-			if (storedScienceReportList.Count > 0)
+			if (storedScienceReportList.Contains(data))
 			{
 				experimentsReturned++;
 				Inoperable = !IsRerunnable();
+				lastInOperableState = Inoperable;
 				Deployed = Inoperable;
 				storedScienceReportList.Remove(data);
+			}
+			else if (initialDataList.Contains(data))
+			{
+				if (!string.IsNullOrEmpty(sampleAnim))
+					secondaryAnimator(sampleAnim, animSpeed, experimentsNumber * (1f / experimentsLimit), anim2[sampleAnim].length / experimentsLimit);
+
+				DumpInitialData(data);
+				experimentsNumber++;
 			}
 		}
 
@@ -1035,7 +1160,7 @@ namespace DMModuleScienceAnimateGeneric
 			{
 				ScienceData data = storedScienceReportList[dataIndex];
 				ExperimentResultDialogPage page = new ExperimentResultDialogPage(part, data, data.baseTransmitValue, data.transmitBonus, (experimentsReturned >= (experimentsLimit - 1)) && !rerunnable, transmitWarningText, true, new ScienceLabSearch(vessel, data), new Callback<ScienceData>(onDiscardData), new Callback<ScienceData>(onKeepData), new Callback<ScienceData>(onTransmitData), new Callback<ScienceData>(onSendToLab));
-				ExperimentsResultDialog.DisplayResult(page);
+				resultsDialog = ExperimentsResultDialog.DisplayResult(page);
 			}
 		}
 
@@ -1067,12 +1192,14 @@ namespace DMModuleScienceAnimateGeneric
 			{
 				ScienceData data = initialDataList[0];
 				ExperimentResultDialogPage page = new ExperimentResultDialogPage(part, data, data.baseTransmitValue, data.transmitBonus, (experimentsReturned >= (experimentsLimit - 1)) && !rerunnable, transmitWarningText, true, new ScienceLabSearch(vessel, data), new Callback<ScienceData>(onDiscardInitialData), new Callback<ScienceData>(onKeepInitialData), new Callback<ScienceData>(onTransmitInitialData), new Callback<ScienceData>(onSendInitialToLab));
-				ExperimentsResultDialog.DisplayResult(page);
+				resultsDialog = ExperimentsResultDialog.DisplayResult(page);
 			}
 		}
 
 		private void onDiscardData(ScienceData data)
 		{
+			resultsDialog = null;
+
 			if (storedScienceReportList.Count > 0)
 			{
 				if (!string.IsNullOrEmpty(sampleAnim))
@@ -1088,10 +1215,14 @@ namespace DMModuleScienceAnimateGeneric
 
 		private void onKeepData(ScienceData data)
 		{
+			resultsDialog = null;
+
 		}
 
 		private void onTransmitData(ScienceData data)
 		{
+			resultsDialog = null;
+
 			IScienceDataTransmitter bestTransmitter = ScienceUtil.GetBestTransmitter(vessel);
 
 			if (bestTransmitter != null)
@@ -1099,12 +1230,16 @@ namespace DMModuleScienceAnimateGeneric
 				bestTransmitter.TransmitData(new List<ScienceData> { data });
 				DumpData(data);
 			}
+			else if (CommNet.CommNetScenario.CommNetEnabled)
+				ScreenMessages.PostScreenMessage("No usable, in-range Comms Devices on this vessel. Cannot Transmit Data.", 3f, ScreenMessageStyle.UPPER_CENTER);
 			else
 				ScreenMessages.PostScreenMessage("No Comms Devices on this vessel. Cannot Transmit Data.", 3f, ScreenMessageStyle.UPPER_CENTER);
 		}
 
 		private void onSendToLab(ScienceData data)
 		{
+			resultsDialog = null;
+
 			ScienceLabSearch labSearch = new ScienceLabSearch(vessel, data);
 
 			if (labSearch.NextLabForDataFound)
@@ -1118,6 +1253,8 @@ namespace DMModuleScienceAnimateGeneric
 
 		private void onDiscardInitialData(ScienceData data)
 		{
+			resultsDialog = null;
+
 			if (initialDataList.Count > 0)
 			{
 				initialDataList.Remove(data);
@@ -1128,6 +1265,8 @@ namespace DMModuleScienceAnimateGeneric
 
 		private void onKeepInitialData(ScienceData data)
 		{
+			resultsDialog = null;
+
 			if (experimentsNumber >= experimentsLimit)
 			{
 				ScreenMessages.PostScreenMessage(storageFullMessage, 5f, ScreenMessageStyle.UPPER_CENTER);
@@ -1145,6 +1284,8 @@ namespace DMModuleScienceAnimateGeneric
 
 		private void onTransmitInitialData(ScienceData data)
 		{
+			resultsDialog = null;
+
 			IScienceDataTransmitter bestTransmitter = ScienceUtil.GetBestTransmitter(vessel);
 
 			if (bestTransmitter != null)
@@ -1155,18 +1296,25 @@ namespace DMModuleScienceAnimateGeneric
 				DumpInitialData(data);
 				experimentsNumber++;
 			}
+			else if (CommNet.CommNetScenario.CommNetEnabled)
+				ScreenMessages.PostScreenMessage("No usable, in-range Comms Devices on this vessel. Cannot Transmit Data.", 3f, ScreenMessageStyle.UPPER_CENTER);
 			else
 				ScreenMessages.PostScreenMessage("No Comms Devices on this vessel. Cannot Transmit Data.", 3f, ScreenMessageStyle.UPPER_CENTER);
 		}
 
 		private void onSendInitialToLab(ScienceData data)
 		{
+			resultsDialog = null;
+
 			ScienceLabSearch labSearch = new ScienceLabSearch(vessel, data);
 
 			if (labSearch.NextLabForDataFound)
 			{
+				if (!string.IsNullOrEmpty(sampleAnim))
+					secondaryAnimator(sampleAnim, animSpeed, experimentsNumber * (1f / experimentsLimit), anim2[sampleAnim].length / experimentsLimit);
 				StartCoroutine(labSearch.NextLabForData.ProcessData(data, null));
-				DumpData(data);
+				DumpInitialData(data);
+				experimentsNumber++;
 			}
 			else
 				labSearch.PostErrorToScreen();
