@@ -34,6 +34,7 @@ using UnityEngine;
 using System.Collections;
 using FinePrint.Utilities;
 using KSP.UI.Screens.Flight.Dialogs;
+using Experience.Effects;
 
 namespace DMModuleScienceAnimateGeneric
 {
@@ -624,7 +625,7 @@ namespace DMModuleScienceAnimateGeneric
 			if (!FlightGlobals.ActiveVessel.isEVA)
 				return;
 
-			if (FlightGlobals.ActiveVessel.parts[0].protoModuleCrew[0].experienceTrait.TypeName != "Scientist")
+			if (FlightGlobals.ActiveVessel.parts[0].protoModuleCrew[0].HasEffect<ScienceResetSkill>())
 			{
 				ScreenMessages.PostScreenMessage(string.Format("<b><color=orange>[{0}]: A scientist is needed to reset this experiment.</color></b>", part.partInfo.title), 6f, ScreenMessageStyle.UPPER_LEFT);
 				return;
@@ -685,6 +686,7 @@ namespace DMModuleScienceAnimateGeneric
 					new Vector2(0.5f, 0.5f),
 					new Vector2(0.5f, 0.5f),
 					new MultiOptionDialog(
+						"DMDataTransfer",
 						collectWarningText,
 						part.partInfo.title + "Warning!",
 						UISkinManager.defaultSkin,
@@ -828,7 +830,7 @@ namespace DMModuleScienceAnimateGeneric
 			}
 
 			ScienceData data = null;
-			ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(scienceExp, vesselSituation, mainBody, biome);
+			ScienceSubject sub = ResearchAndDevelopment.GetExperimentSubject(scienceExp, vesselSituation, mainBody, biome, "");
 			sub.title = scienceExp.experimentTitle + situationCleanup(vesselSituation, biome);
 
 			if (asteroid)
@@ -995,17 +997,17 @@ namespace DMModuleScienceAnimateGeneric
 				switch (expSit)
 				{
 					case ExperimentSituations.SrfLanded:
-						return " from  " + vessel.mainBody.theName + "'s surface";
+						return " from  " + vessel.mainBody.bodyName + "'s surface";
 					case ExperimentSituations.SrfSplashed:
-						return " from " + vessel.mainBody.theName + "'s oceans";
+						return " from " + vessel.mainBody.bodyName + "'s oceans";
 					case ExperimentSituations.FlyingLow:
-						return " while flying at " + vessel.mainBody.theName;
+						return " while flying at " + vessel.mainBody.bodyName;
 					case ExperimentSituations.FlyingHigh:
-						return " from " + vessel.mainBody.theName + "'s upper atmosphere";
+						return " from " + vessel.mainBody.bodyName + "'s upper atmosphere";
 					case ExperimentSituations.InSpaceLow:
-						return " while in space near " + vessel.mainBody.theName;
+						return " while in space near " + vessel.mainBody.bodyName;
 					default:
-						return " while in space high over " + vessel.mainBody.theName;
+						return " while in space high over " + vessel.mainBody.bodyName;
 				}
 			}
 			else
@@ -1013,17 +1015,17 @@ namespace DMModuleScienceAnimateGeneric
 				switch (expSit)
 				{
 					case ExperimentSituations.SrfLanded:
-						return " from " + vessel.mainBody.theName + "'s " + b;
+						return " from " + vessel.mainBody.bodyName + "'s " + b;
 					case ExperimentSituations.SrfSplashed:
-						return " from " + vessel.mainBody.theName + "'s " + b;
+						return " from " + vessel.mainBody.bodyName + "'s " + b;
 					case ExperimentSituations.FlyingLow:
-						return " while flying over " + vessel.mainBody.theName + "'s " + b;
+						return " while flying over " + vessel.mainBody.bodyName + "'s " + b;
 					case ExperimentSituations.FlyingHigh:
-						return " from the upper atmosphere over " + vessel.mainBody.theName + "'s " + b;
+						return " from the upper atmosphere over " + vessel.mainBody.bodyName + "'s " + b;
 					case ExperimentSituations.InSpaceLow:
-						return " from space just above " + vessel.mainBody.theName + "'s " + b;
+						return " from space just above " + vessel.mainBody.bodyName + "'s " + b;
 					default:
-						return " while in space high over " + vessel.mainBody.theName + "'s " + b;
+						return " while in space high over " + vessel.mainBody.bodyName + "'s " + b;
 				}
 			}
 		}
