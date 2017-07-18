@@ -114,6 +114,12 @@ namespace DMModuleScienceAnimateGeneric
 		public bool excludeAtmosphere = false;
 		[KSPField]
 		public string excludeAtmosphereMessage = "This experiment can't be conducted within an atmosphere";
+		[KSPField]
+		public bool useSampleTransforms = false;
+		[KSPField]
+		public string sampleTransformName = "";
+		[KSPField]
+		public bool allowEVACleanUp = true;
 
 		private Animation anim;
 		private Animation anim2;
@@ -123,6 +129,7 @@ namespace DMModuleScienceAnimateGeneric
 		private bool lastInOperableState = false;
 		private string failMessage = "";
 		private ExperimentsResultDialog resultsDialog;
+		private Dictionary<int, GameObject> sampleTransforms = new Dictionary<int, GameObject>();
 
 		private List<string> requiredPartList = new List<string>();
 		private List<string> requiredModuleList = new List<string>();
@@ -187,6 +194,10 @@ namespace DMModuleScienceAnimateGeneric
 			}
 
 			base.OnStart(state);
+
+			if (useSampleTransforms)
+				setSampleTransforms();
+
 			if (!string.IsNullOrEmpty(animationName) && part.FindModelAnimators(animationName).Length > 0)
 				anim = part.FindModelAnimators(animationName).FirstOrDefault();
 			if (!string.IsNullOrEmpty(sampleAnim) && part.FindModelAnimators(sampleAnim).Length > 0)
@@ -256,13 +267,7 @@ namespace DMModuleScienceAnimateGeneric
 			else if (lastInOperableState)
 			{
 				lastInOperableState = false;
-				if (!string.IsNullOrEmpty(sampleAnim))
-					secondaryAnimator(sampleAnim, -1f * animSpeed, experimentsNumber * (1f / experimentsLimit), anim2[sampleAnim].length);
-				experimentsNumber = 0;
-				experimentsReturned = 0;
-				Inoperable = false;
-				Deployed = false;
-				if (keepDeployedMode == 0) retractEvent();
+				onLabReset();
 			}
 			eventsCheck();
 		}
@@ -318,6 +323,58 @@ namespace DMModuleScienceAnimateGeneric
 				info += "Experiment Can't Be Run In An Atmosphere\n";
 			}
 			return info;
+		}
+
+		private void setSampleTransforms()
+		{
+			if (string.IsNullOrEmpty(sampleTransformName))
+				return;
+
+			if (experimentsLimit > 1)
+			{
+				for (int i = 0; i < experimentsLimit; i++)
+				{
+					string s = sampleTransformName + ".00" + i.ToString();
+
+					Transform t = part.FindModelTransform(s);
+
+					if (t == null)
+						continue;
+
+					GameObject g = t.gameObject;
+
+					if (g == null)
+						continue;
+
+					if (sampleTransforms.ContainsKey(i))
+						continue;
+
+					sampleTransforms.Add(i, g);
+
+					if (experimentsReturned > i)
+						g.SetActive(false);
+				}
+			}
+			else
+			{
+				Transform t = part.FindModelTransform(sampleTransformName);
+
+				if (t == null)
+					return;
+
+				GameObject g = t.gameObject;
+
+				if (g == null)
+					return;
+
+				if (sampleTransforms.ContainsKey(0))
+					return;
+
+				sampleTransforms.Add(0, g);
+
+				if (experimentsReturned > 0)
+					g.SetActive(false); 
+			}
 		}
 
 		private void setup()
@@ -457,7 +514,7 @@ namespace DMModuleScienceAnimateGeneric
 			Events["ReviewDataEvent"].active = storedScienceReportList.Count > 0;
 			Events["ReviewInitialData"].active = initialDataList.Count > 0;
 			Events["DeployExperimentExternal"].guiActiveUnfocused = false;
-			Events["CleanUpExperimentExternal"].active = Inoperable;
+			Events["CleanUpExperimentExternal"].active = Inoperable && allowEVACleanUp;
 			Events["TransferDataEvent"].active = hasContainer && dataIsCollectable && storedScienceReportList.Count > 0;
 		}
 
@@ -625,6 +682,12 @@ namespace DMModuleScienceAnimateGeneric
 			if (!FlightGlobals.ActiveVessel.isEVA)
 				return;
 
+			if (!allowEVACleanUp)
+			{
+				ScreenMessages.PostScreenMessage(string.Format("<b><color=orange>[{0}]: This is experiment does not allow for EVA clean up.</color></b>", part.partInfo.title), 6f, ScreenMessageStyle.UPPER_LEFT);
+				return;
+			}
+
 			if (!FlightGlobals.ActiveVessel.parts[0].protoModuleCrew[0].HasEffect<ScienceResetSkill>())
 			{
 				ScreenMessages.PostScreenMessage(string.Format("<b><color=orange>[{0}]: A scientist is needed to reset this experiment.</color></b>", part.partInfo.title), 6f, ScreenMessageStyle.UPPER_LEFT);
@@ -637,10 +700,45 @@ namespace DMModuleScienceAnimateGeneric
 				return;
 			}
 
-			ResetExperiment();
+			onLabReset();
 
 			ScreenMessages.PostScreenMessage(string.Format("<b><color=#99ff00ff>[{0}]: Media Restored. Module is operational again.</color></b>", part.partInfo.title), 6f, ScreenMessageStyle.UPPER_LEFT);
 			
+		}
+
+		private void onLabReset()
+		{
+			if (experimentsLimit > 1)
+			{
+				if (!string.IsNullOrEmpty(sampleAnim))
+					secondaryAnimator(sampleAnim, -1f * animSpeed, experimentsNumber * (1f / experimentsLimit), experimentsNumber * (anim2[sampleAnim].length / experimentsLimit));
+			}
+
+			experimentsNumber = 0;
+			experimentsReturned = 0;
+
+			Inoperable = false;
+			Deployed = false;
+			lastInOperableState = false;
+
+			if (keepDeployedMode == 0)
+				retractEvent();
+
+			if (useSampleTransforms)
+			{
+				for (int i = 0; i < sampleTransforms.Count; i++)
+				{
+					if (!sampleTransforms.ContainsKey(i))
+						continue;
+
+					GameObject g = sampleTransforms[i];
+
+					if (g == null)
+						continue;
+
+					g.SetActive(true);
+				}
+			}
 		}
 
 		new public void TransferDataEvent()
@@ -1102,6 +1200,21 @@ namespace DMModuleScienceAnimateGeneric
 				Deployed = true;
 			else
 				Deployed = experimentsNumber >= experimentsLimit;
+
+			if (useSampleTransforms)
+			{
+				int i = experimentsReturned;
+
+				if (!sampleTransforms.ContainsKey(i))
+					return;
+
+				GameObject g = sampleTransforms[i];
+
+				if (g == null)
+					return;
+
+				g.SetActive(true);
+			}
 		}
 
 		private void DumpAllData(List<ScienceData> data)
@@ -1111,6 +1224,24 @@ namespace DMModuleScienceAnimateGeneric
 			Inoperable = !IsRerunnable();
 			Deployed = Inoperable;
 			data.Clear();
+
+			if (useSampleTransforms)
+			{
+				for (int i = 1; i <= data.Count; i++)
+				{
+					int j = experimentsReturned - i;
+
+					if (!sampleTransforms.ContainsKey(j))
+						continue;
+
+					GameObject g = sampleTransforms[j];
+
+					if (g == null)
+						continue;
+
+					g.SetActive(false);
+				}
+			}
 		}
 
 		new private void DumpData(ScienceData data)
@@ -1122,6 +1253,21 @@ namespace DMModuleScienceAnimateGeneric
 				lastInOperableState = Inoperable;
 				Deployed = Inoperable;
 				storedScienceReportList.Remove(data);
+
+				if (useSampleTransforms)
+				{
+					int i = experimentsReturned - 1;
+
+					if (!sampleTransforms.ContainsKey(i))
+						return;
+
+					GameObject g = sampleTransforms[i];
+
+					if (g == null)
+						return;
+
+					g.SetActive(false);
+				}
 			}
 			else if (initialDataList.Contains(data))
 			{
@@ -1141,6 +1287,21 @@ namespace DMModuleScienceAnimateGeneric
 				Inoperable = !IsRerunnable();
 				Deployed = Inoperable;
 				initialDataList.Remove(data);
+
+				if (useSampleTransforms)
+				{
+					int i = experimentsReturned - 1;
+
+					if (!sampleTransforms.ContainsKey(i))
+						return;
+
+					GameObject g = sampleTransforms[i];
+
+					if (g == null)
+						return;
+
+					g.SetActive(false);
+				}
 			}
 		}
 
