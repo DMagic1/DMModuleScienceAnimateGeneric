@@ -29,7 +29,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 using System.Collections;
 using FinePrint.Utilities;
@@ -118,20 +117,36 @@ namespace DMModuleScienceAnimateGeneric
 		public bool useSampleTransforms = false;
 		[KSPField]
 		public string sampleTransformName = "";
-		[KSPField]
+        [KSPField]
+        public bool useReplacementTransforms = false;
+        [KSPField]
+        public float replacementTransformScale = 1;
+        [KSPField]
+        public string replacementTransformName = "";
+        [KSPField]
+        public bool dataRemovalAnimation = false;
+        [KSPField]
+        public bool dataRemovalAnimationReverse = false;
+        [KSPField]
+        public string dataRemovalAnimationName = "";
+        [KSPField]
+        public bool waitForDataRemoval = false;
+        [KSPField]
 		public bool allowEVACleanUp = true;
 
 		private Animation anim;
 		private Animation anim2;
-		internal ScienceExperiment scienceExp;
+        private Animation anim3;
+        internal ScienceExperiment scienceExp;
 		private bool resourceOn = false;
 		private int dataIndex = 0;
 		private bool lastInOperableState = false;
 		private string failMessage = "";
 		private ExperimentsResultDialog resultsDialog;
 		private Dictionary<int, GameObject> sampleTransforms = new Dictionary<int, GameObject>();
+        private Dictionary<int, GameObject> replacementTransforms = new Dictionary<int, GameObject>();
 
-		private List<string> requiredPartList = new List<string>();
+        private List<string> requiredPartList = new List<string>();
 		private List<string> requiredModuleList = new List<string>();
 
 		//Record some default values for Eeloo here to prevent the asteroid science method from screwing them up
@@ -205,6 +220,10 @@ namespace DMModuleScienceAnimateGeneric
 				anim2 = part.FindModelAnimators(sampleAnim).FirstOrDefault();
 				secondaryAnimator(sampleAnim, 0f, experimentsNumber * (1f / experimentsLimit), 1f);
 			}
+
+            if (!string.IsNullOrEmpty(dataRemovalAnimationName) && part.FindModelAnimators(dataRemovalAnimationName).Length > 0)
+                anim3 = part.FindModelAnimators(dataRemovalAnimationName).FirstOrDefault();
+
 			if (state == StartState.Editor) editorSetup();
 			else
 			{
@@ -327,54 +346,111 @@ namespace DMModuleScienceAnimateGeneric
 
 		private void setSampleTransforms()
 		{
-			if (string.IsNullOrEmpty(sampleTransformName))
-				return;
+            if (!string.IsNullOrEmpty(sampleTransformName))
+            {
+                if (experimentsLimit > 1)
+                {
+                    for (int i = 0; i < experimentsLimit; i++)
+                    {
+                        string s = sampleTransformName + ".00" + i.ToString();
 
-			if (experimentsLimit > 1)
-			{
-				for (int i = 0; i < experimentsLimit; i++)
-				{
-					string s = sampleTransformName + ".00" + i.ToString();
+                        Transform t = part.FindModelTransform(s);
 
-					Transform t = part.FindModelTransform(s);
+                        if (t == null)
+                            continue;
 
-					if (t == null)
-						continue;
+                        GameObject g = t.gameObject;
 
-					GameObject g = t.gameObject;
+                        if (g == null)
+                            continue;
 
-					if (g == null)
-						continue;
+                        if (sampleTransforms.ContainsKey(i))
+                            continue;
 
-					if (sampleTransforms.ContainsKey(i))
-						continue;
+                        sampleTransforms.Add(i, g);
 
-					sampleTransforms.Add(i, g);
+                        if (experimentsReturned > i)
+                            g.SetActive(false);
+                    }
+                }
+                else
+                {
+                    Transform t = part.FindModelTransform(sampleTransformName);
 
-					if (experimentsReturned > i)
-						g.SetActive(false);
-				}
-			}
-			else
-			{
-				Transform t = part.FindModelTransform(sampleTransformName);
+                    if (t != null)
+                    {
+                        GameObject g = t.gameObject;
 
-				if (t == null)
-					return;
+                        if (g != null)
+                        {
+                            if (!sampleTransforms.ContainsKey(0))
+                            {
+                                sampleTransforms.Add(0, g);
 
-				GameObject g = t.gameObject;
+                                if (experimentsReturned > 0)
+                                    g.SetActive(false);
+                            }
+                        }
+                    }
+                }
+            }
 
-				if (g == null)
-					return;
+            if (useReplacementTransforms && !string.IsNullOrEmpty(replacementTransformName))
+            {
+                if (experimentsLimit > 1)
+                {
+                    for (int i = 0; i < experimentsLimit; i++)
+                    {
+                        string s = replacementTransformName + ".00" + i.ToString();
 
-				if (sampleTransforms.ContainsKey(0))
-					return;
+                        Transform t = part.FindModelTransform(s);
 
-				sampleTransforms.Add(0, g);
+                        if (t == null)
+                            continue;
 
-				if (experimentsReturned > 0)
-					g.SetActive(false); 
-			}
+                        GameObject g = t.gameObject;
+
+                        if (g == null)
+                            continue;
+
+                        if (replacementTransforms.ContainsKey(i))
+                            continue;
+
+                        replacementTransforms.Add(i, g);
+
+                        t.localScale = new Vector3(replacementTransformScale, replacementTransformScale, replacementTransformScale);
+
+                        if (experimentsReturned > i)
+                            g.SetActive(true);
+                        else
+                            g.SetActive(false);
+                    }
+                }
+                else
+                {
+                    Transform t = part.FindModelTransform(replacementTransformName);
+
+                    if (t == null)
+                        return;
+
+                    GameObject g = t.gameObject;
+
+                    if (g == null)
+                        return;
+
+                    if (replacementTransforms.ContainsKey(0))
+                        return;
+
+                    replacementTransforms.Add(0, g);
+
+                    t.localScale = new Vector3(replacementTransformScale, replacementTransformScale, replacementTransformScale);
+
+                    if (experimentsReturned > 0)
+                        g.SetActive(true);
+                    else
+                        g.SetActive(false);
+                }
+            }
 		}
 
 		private void setup()
@@ -724,21 +800,36 @@ namespace DMModuleScienceAnimateGeneric
 			if (keepDeployedMode == 0)
 				retractEvent();
 
+            if (dataRemovalAnimation && dataRemovalAnimationReverse && anim3 != null)
+                primaryAnimator(-1, 1, WrapMode.Clamp, dataRemovalAnimationName, anim3);
+
 			if (useSampleTransforms)
 			{
-				for (int i = 0; i < sampleTransforms.Count; i++)
-				{
-					if (!sampleTransforms.ContainsKey(i))
-						continue;
+                for (int i = 0; i < sampleTransforms.Count; i++)
+                {
+                    if (sampleTransforms.ContainsKey(i))
+                    {
+                        GameObject g = sampleTransforms[i];
 
-					GameObject g = sampleTransforms[i];
-
-					if (g == null)
-						continue;
-
-					g.SetActive(true);
-				}
+                        if (g != null)
+                            g.SetActive(true);
+                    }
+                }
 			}
+
+            if (useReplacementTransforms)
+            {
+                for (int i = 0; i < replacementTransforms.Count; i++)
+                {
+                    if (replacementTransforms.ContainsKey(i))
+                    {
+                        GameObject g = replacementTransforms[i];
+
+                        if (g != null)
+                            g.SetActive(false);
+                    }
+                }
+            }
 		}
 
 		new public void TransferDataEvent()
@@ -1201,21 +1292,35 @@ namespace DMModuleScienceAnimateGeneric
 			else
 				Deployed = experimentsNumber >= experimentsLimit;
 
-			if (useSampleTransforms)
-			{
-				int i = experimentsReturned;
+            if (dataRemovalAnimation && dataRemovalAnimationReverse && anim3 != null)
+                primaryAnimator(-1, 1, WrapMode.Clamp, dataRemovalAnimationName, anim3);
 
-				if (!sampleTransforms.ContainsKey(i))
-					return;
+            if (useSampleTransforms)
+            {
+                int i = experimentsReturned;
 
-				GameObject g = sampleTransforms[i];
+                if (sampleTransforms.ContainsKey(i))
+                {
+                    GameObject g = sampleTransforms[i];
 
-				if (g == null)
-					return;
+                    if (g != null)
+                        g.SetActive(true);
+                }
+            }
 
-				g.SetActive(true);
-			}
-		}
+            if (useReplacementTransforms)
+            {
+                int i = experimentsReturned;
+
+                if (replacementTransforms.ContainsKey(i))
+                {
+                    GameObject g = replacementTransforms[i];
+
+                    if (g != null)
+                        g.SetActive(false);
+                }
+            }
+        }
 
 		private void DumpAllData(List<ScienceData> data)
 		{
@@ -1225,26 +1330,88 @@ namespace DMModuleScienceAnimateGeneric
 			Deployed = Inoperable;
 			data.Clear();
 
-			if (useSampleTransforms)
-			{
-				for (int i = 1; i <= data.Count; i++)
-				{
-					int j = experimentsReturned - i;
+            if (dataRemovalAnimation && anim3 != null)
+            {
+                primaryAnimator(animSpeed, 0, WrapMode.Clamp, dataRemovalAnimationName, anim3);
 
-					if (!sampleTransforms.ContainsKey(j))
-						continue;
+                if (waitForDataRemoval)
+                {
+                    StartCoroutine(WaitForAllDataRemoval(anim3[dataRemovalAnimationName].length, data));
+                    return;
+                }
+            }
 
-					GameObject g = sampleTransforms[j];
+            if (useSampleTransforms)
+            {
+                for (int i = 1; i <= data.Count; i++)
+                {
+                    int j = experimentsReturned - i;
 
-					if (g == null)
-						continue;
+                    if (sampleTransforms.ContainsKey(j))
+                    {
+                        GameObject g = sampleTransforms[j];
 
-					g.SetActive(false);
-				}
-			}
-		}
+                        if (g != null)
+                            g.SetActive(false);
+                    }
+                }
+            }
 
-		new private void DumpData(ScienceData data)
+            if (useReplacementTransforms)
+            {
+                for (int i = 1; i <= data.Count; i++)
+                {
+                    int j = experimentsReturned - i;
+
+                    if (replacementTransforms.ContainsKey(j))
+                    {
+                        GameObject g = replacementTransforms[j];
+
+                        if (g != null)
+                            g.SetActive(true);
+                    }
+                }
+            }
+        }
+
+        private IEnumerator WaitForAllDataRemoval(float time, List<ScienceData> data)
+        {
+            yield return new WaitForSeconds(time);
+
+            if (useSampleTransforms)
+            {
+                for (int i = 1; i <= data.Count; i++)
+                {
+                    int j = experimentsReturned - i;
+
+                    if (sampleTransforms.ContainsKey(j))
+                    {
+                        GameObject g = sampleTransforms[j];
+
+                        if (g != null)
+                            g.SetActive(false);
+                    }
+                }
+            }
+
+            if (useReplacementTransforms)
+            {
+                for (int i = 1; i <= data.Count; i++)
+                {
+                    int j = experimentsReturned - i;
+
+                    if (replacementTransforms.ContainsKey(j))
+                    {
+                        GameObject g = replacementTransforms[j];
+
+                        if (g != null)
+                            g.SetActive(true);
+                    }
+                }
+            }
+        }
+
+        new private void DumpData(ScienceData data)
 		{
 			if (storedScienceReportList.Contains(data))
 			{
@@ -1254,21 +1421,43 @@ namespace DMModuleScienceAnimateGeneric
 				Deployed = Inoperable;
 				storedScienceReportList.Remove(data);
 
-				if (useSampleTransforms)
-				{
-					int i = experimentsReturned - 1;
+                if (dataRemovalAnimation && anim3 != null)
+                {
+                    primaryAnimator(animSpeed, 0, WrapMode.Clamp, dataRemovalAnimationName, anim3);
 
-					if (!sampleTransforms.ContainsKey(i))
-						return;
+                    if (waitForDataRemoval)
+                    {
+                        StartCoroutine(WaitForDataRemoval(anim3[dataRemovalAnimationName].length));
+                        return;
+                    }
+                }
 
-					GameObject g = sampleTransforms[i];
+                if (useSampleTransforms)
+                {
+                    int i = experimentsReturned - 1;
 
-					if (g == null)
-						return;
+                    if (sampleTransforms.ContainsKey(i))
+                    {
+                        GameObject g = sampleTransforms[i];
 
-					g.SetActive(false);
-				}
-			}
+                        if (g != null)
+                            g.SetActive(false);
+                    }
+                }
+
+                if (useReplacementTransforms)
+                {
+                    int i = experimentsReturned - 1;
+
+                    if (replacementTransforms.ContainsKey(i))
+                    {
+                        GameObject g = replacementTransforms[i];
+
+                        if (g != null)
+                            g.SetActive(true);
+                    }
+                }
+            }
 			else if (initialDataList.Contains(data))
 			{
 				if (!string.IsNullOrEmpty(sampleAnim))
@@ -1279,6 +1468,37 @@ namespace DMModuleScienceAnimateGeneric
 			}
 		}
 
+        private IEnumerator WaitForDataRemoval(float time)
+        {
+            yield return new WaitForSeconds(time);
+
+            if (useSampleTransforms)
+            {
+                int i = experimentsReturned - 1;
+
+                if (sampleTransforms.ContainsKey(i))
+                {
+                    GameObject g = sampleTransforms[i];
+
+                    if (g != null)
+                        g.SetActive(false);
+                }
+            }
+
+            if (useReplacementTransforms)
+            {
+                int i = experimentsReturned - 1;
+
+                if (replacementTransforms.ContainsKey(i))
+                {
+                    GameObject g = replacementTransforms[i];
+
+                    if (g != null)
+                        g.SetActive(true);
+                }
+            }
+        }
+
 		private void DumpInitialData(ScienceData data)
 		{
 			if (initialDataList.Count > 0)
@@ -1288,21 +1508,43 @@ namespace DMModuleScienceAnimateGeneric
 				Deployed = Inoperable;
 				initialDataList.Remove(data);
 
-				if (useSampleTransforms)
-				{
-					int i = experimentsReturned - 1;
+                if (dataRemovalAnimation && anim3 != null)
+                {
+                    primaryAnimator(animSpeed, 0, WrapMode.Clamp, dataRemovalAnimationName, anim3);
 
-					if (!sampleTransforms.ContainsKey(i))
-						return;
+                    if (waitForDataRemoval)
+                    {
+                        StartCoroutine(WaitForDataRemoval(anim3[dataRemovalAnimationName].length));
+                        return;
+                    }
+                }
 
-					GameObject g = sampleTransforms[i];
+                if (useSampleTransforms)
+                {
+                    int i = experimentsReturned - 1;
 
-					if (g == null)
-						return;
+                    if (sampleTransforms.ContainsKey(i))
+                    {
+                        GameObject g = sampleTransforms[i];
 
-					g.SetActive(false);
-				}
-			}
+                        if (g != null)
+                            g.SetActive(false);
+                    }
+                }
+
+                if (useReplacementTransforms)
+                {
+                    int i = experimentsReturned - 1;
+
+                    if (replacementTransforms.ContainsKey(i))
+                    {
+                        GameObject g = replacementTransforms[i];
+
+                        if (g != null)
+                            g.SetActive(true);
+                    }
+                }
+            }
 		}
 
 		new private bool IsRerunnable()
