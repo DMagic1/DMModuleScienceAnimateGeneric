@@ -133,8 +133,11 @@ namespace DMModuleScienceAnimateGeneric
         public bool waitForDataRemoval = false;
         [KSPField]
 		public bool allowEVACleanUp = true;
+        // Added by Pap for RP-0
+        [KSPField]
+        public float totalScienceLevel = 1.0f;
 
-		private Animation anim;
+        private Animation anim;
 		private Animation anim2;
         private Animation anim3;
         internal ScienceExperiment scienceExp;
@@ -317,7 +320,9 @@ namespace DMModuleScienceAnimateGeneric
 			info += string.Format("\nTransmission: {0:P0}\n", xmitDataScalar);
 			if (experimentsLimit > 1)
 				info += "Max Samples: " + experimentsLimit + "\n";
-			if (!rerunnable)
+            if (totalScienceLevel < 1)
+                info += string.Format("Total Science Available: {0:P0}\n", totalScienceLevel);
+            if (!rerunnable)
 				info += string.Format("Scientist Level For Reset: {0}\n", resetLevel);
 			if (resourceExpCost > 0)
 				info += "Requires:\n-" + resourceExperiment + ": " + resourceExpCost.ToString() + "/s for " + waitForAnimationTime.ToString() + "s\n";
@@ -1030,8 +1035,27 @@ namespace DMModuleScienceAnimateGeneric
 				asteroid = false;
 			}
 
-			if (sub != null)
-				data = new ScienceData(scienceExp.baseValue * sub.dataScale, xmitDataScalar, 0, sub.id, sub.title, false, part.flightID);
+            float dat = scienceExp.baseValue * sub.dataScale * totalScienceLevel;
+
+            if (totalScienceLevel < 1)
+            {
+                float science = (dat * sub.subjectValue) / sub.dataScale;
+                float max = sub.scienceCap * totalScienceLevel;
+                if (sub.science >= max)
+                {
+                    dat = 0.000001f;
+                }
+                else
+                {
+                    float sci = Mathf.Max(Mathf.Min(science - sub.science, max), 0.000001f);
+                    dat = (sci * sub.dataScale) / sub.subjectValue;
+                    dat /= sub.scientificValue;
+                }
+            }
+
+            if (sub != null)
+                data = new ScienceData(dat, xmitDataScalar, 0, sub.id, sub.title, false, part.flightID);
+                data = new ScienceData(dat, xmitDataScalar, 0, sub.id, sub.title, false, part.flightID);
 			return data;
 		}
 
