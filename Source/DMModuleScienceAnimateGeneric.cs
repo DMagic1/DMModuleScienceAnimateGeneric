@@ -1055,7 +1055,7 @@ namespace DMModuleScienceAnimateGeneric
 
             if (sub != null)
                 data = new ScienceData(dat, xmitDataScalar, 0, sub.id, sub.title, false, part.flightID);
-                data = new ScienceData(dat, xmitDataScalar, 0, sub.id, sub.title, false, part.flightID);
+
 			return data;
 		}
 
