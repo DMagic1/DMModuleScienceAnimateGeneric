@@ -38,18 +38,18 @@ namespace DMModuleScienceAnimateGeneric
 		/// <summary>
 		/// Use to determine whether an experiment can be conducted at this time. This returns the same value as the internal check used when an experiment is deplyed from the right-click menu.
 		/// </summary>
-		/// <param name="isc">The science experiment module must be cast as a ModuleScienceExperiment.</param>
+		/// <param name="isc">The science experiment module must be cast as a IScienceDataContianer.</param>
 		/// <returns>Returns true if the experiment can be performed; will return false if the science module is not of the right type.</returns>
-		public static bool experimentCanConduct(ModuleScienceExperiment mse)
+		public static bool experimentCanConduct(IScienceDataContainer isc)
 		{
-			if (mse == null)
+			if (isc == null)
 				return false;
 
-			Type t = mse.GetType();
+			Type t = isc.GetType();
 
 			if (t == typeof(DMModuleScienceAnimateGeneric))
 			{
-				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)mse;
+				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)isc;
 				return DMMod.canConduct();
 			}
 
@@ -62,16 +62,16 @@ namespace DMModuleScienceAnimateGeneric
 		/// <param name="isc">The science experiment module must be cast as a ModuleScienceExperiment.</param>
 		/// <param name="silent">Set to true to prevent the science results dialog from opening.</param>
 		/// <returns>Returns true if the science module is of the right type and the gather science method is called.</returns>
-		public static bool deployDMExperiment(ModuleScienceExperiment mse, bool silent = false)
+		public static bool deployDMExperiment(IScienceDataContainer isc, bool silent = false)
 		{
-			if (mse == null)
+			if (isc == null)
 				return false;
 
-			Type t = mse.GetType();
+			Type t = isc.GetType();
 
 			if (t == typeof(DMModuleScienceAnimateGeneric))
 			{
-				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)mse;
+				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)isc;
 				DMMod.gatherScienceData(silent);
 				return true;
 			}
