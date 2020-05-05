@@ -29,7 +29,7 @@
 
 using System;
 
-namespace DMModuleScienceAnimateGeneric
+namespace DMModuleScienceAnimateGeneric_NS
 {
 	//Enum allows the user to select any combination of planets to allow science on
 	[Flags]

@@ -35,7 +35,7 @@ using FinePrint.Utilities;
 using KSP.UI.Screens.Flight.Dialogs;
 using Experience.Effects;
 
-namespace DMModuleScienceAnimateGeneric
+namespace DMModuleScienceAnimateGeneric_NS
 {
 	public class DMModuleScienceAnimateGeneric : ModuleScienceExperiment, IScienceDataContainer
 	{

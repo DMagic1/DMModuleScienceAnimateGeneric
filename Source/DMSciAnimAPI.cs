@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DMModuleScienceAnimateGeneric
+namespace DMModuleScienceAnimateGeneric_NS
 {
 	public static class DMSciAnimAPI
 	{
