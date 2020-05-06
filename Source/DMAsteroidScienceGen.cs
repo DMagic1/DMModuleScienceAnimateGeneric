@@ -30,7 +30,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace DMModuleScienceAnimateGeneric
+namespace DMModuleScienceAnimateGeneric_NM
 {
 	public class DMAsteroidScienceGen
 	{

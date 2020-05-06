@@ -9,7 +9,7 @@
     <ProjectGuid>{3D050A10-93EA-47B7-8C33-52ACE7EA9517}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DMModuleScienceAnimateGeneric</RootNamespace>
+    <RootNamespace>DMModuleScienceAnimateGeneric_NM</RootNamespace>
     <AssemblyName>DMModuleScienceAnimateGeneric</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
