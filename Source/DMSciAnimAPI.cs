@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DMModuleScienceAnimateGeneric_NM;
 
 namespace DMModuleScienceAnimateGeneric
 {
@@ -47,9 +48,9 @@ namespace DMModuleScienceAnimateGeneric
 
 			Type t = isc.GetType();
 
-			if (t == typeof(DMModuleScienceAnimateGeneric))
+			if (t == typeof(DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric))
 			{
-				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)isc;
+                DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric)isc;
 				return DMMod.canConduct();
 			}
 
@@ -69,9 +70,9 @@ namespace DMModuleScienceAnimateGeneric
 
 			Type t = isc.GetType();
 
-			if (t == typeof(DMModuleScienceAnimateGeneric))
+			if (t == typeof(DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric))
 			{
-				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)isc;
+                DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric)isc;
 				DMMod.gatherScienceData(silent);
 				return true;
 			}
@@ -91,9 +92,9 @@ namespace DMModuleScienceAnimateGeneric
 
 			Type t = mse.GetType();
 
-			if (t == typeof(DMModuleScienceAnimateGeneric))
+			if (t == typeof(DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric))
 			{
-				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)mse;
+                DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric)mse;
 				return DMMod.getSituation();
 			}
 
@@ -113,9 +114,9 @@ namespace DMModuleScienceAnimateGeneric
 
 			Type t = mse.GetType();
 
-			if (t == typeof(DMModuleScienceAnimateGeneric))
+			if (t == typeof(DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric))
 			{
-				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)mse;
+                DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric)mse;
 				return DMMod.getBiome(sit);
 			}
 
@@ -134,9 +135,9 @@ namespace DMModuleScienceAnimateGeneric
 
 			Type t = mse.GetType();
 
-			if (t == typeof(DMModuleScienceAnimateGeneric))
+			if (t == typeof(DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric))
 			{
-				DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)mse;
+                DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric)mse;
 				return DMMod.asteroidReports;
 			}
 
@@ -148,7 +149,7 @@ namespace DMModuleScienceAnimateGeneric
 		/// </summary>
 		/// <param name="dms">The science experiment module must be cast as a DMModuleScienceAnimateGeneric.</param>
 		/// <returns>Returns false if the module is not of the right type or if the experiment cannot be conducted with asteroids.</returns>
-		public static bool isAsteroidExperiment(DMModuleScienceAnimateGeneric dms)
+		public static bool isAsteroidExperiment(DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric dms)
 		{
 			if (dms == null)
 				return false;
@@ -212,10 +213,10 @@ namespace DMModuleScienceAnimateGeneric
 
 			Type t = mse.GetType();
 
-			if (t != typeof(DMModuleScienceAnimateGeneric))
+			if (t != typeof(DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric))
 				return null;
 
-			DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)mse;
+            DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric)mse;
 
 			if (!isAsteroidExperiment(DMMod))
 				return null;
@@ -268,10 +269,10 @@ namespace DMModuleScienceAnimateGeneric
 
 			Type t = mse.GetType();
 
-			if (t != typeof(DMModuleScienceAnimateGeneric))
+			if (t != typeof(DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric))
 				return null;
 
-			DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric)mse;
+            DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric DMMod = (DMModuleScienceAnimateGeneric_NM.DMModuleScienceAnimateGeneric)mse;
 
 			if (!isAsteroidExperiment(DMMod))
 				return null;
